@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mission Control — GCT Commercial</title>
+  <style>
+    :root {
+      --bg: #0a0b0f;
+      --surface: #12141c;
+      --card: #1a1d27;
+      --card-hover: #1f2233;
+      --border: #2a2d3a;
+      --border-light: #363948;
+      --text: #e4e4e7;
+      --text-secondary: #a1a1aa;
+      --muted: #71717a;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --green: #22c55e;
+      --green-dim: #16a34a33;
+      --yellow: #eab308;
+      --yellow-dim: #eab30833;
+      --red: #ef4444;
+      --red-dim: #ef444433;
+      --purple: #a855f7;
+      --purple-dim: #a855f733;
+      --orange: #f97316;
+      --orange-dim: #f9731633;
+      --cyan: #06b6d4;
+      --pink: #ec4899;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ---- TOP NAV ---- */
+    .topnav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topnav-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .topnav .brand {
+      font-weight: 700;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .topnav .brand .logo {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 2px;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .tab:hover { color: var(--text); background: var(--card); }
+    .tab.active { color: var(--text); background: var(--accent); }
+
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ---- MAIN CONTENT ---- */
+    .main { padding: 20px 24px; max-width: 1440px; margin: 0 auto; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ---- CARDS ---- */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card-header {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header .count {
+      background: var(--border);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    /* ---- OVERVIEW PAGE ---- */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .overview-body {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    /* ---- KANBAN BOARD ---- */
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      min-height: 60vh;
+    }
+
+    .kanban-column {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kanban-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .kanban-column-header .col-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .kanban-column-header .col-count {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--border);
+      padding: 1px 7px;
+      border-radius: 8px;
+    }
+
+    .col-backlog .kanban-column-header { border-bottom-color: var(--muted); }
+    .col-todo .kanban-column-header { border-bottom-color: var(--accent); }
+    .col-in_progress .kanban-column-header { border-bottom-color: var(--yellow); }
+    .col-review .kanban-column-header { border-bottom-color: var(--purple); }
+    .col-done .kanban-column-header { border-bottom-color: var(--green); }
+
+    .kanban-cards {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .task-card:hover {
+      background: var(--card-hover);
+      border-color: var(--border-light);
+    }
+
+    .task-card .task-title {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+
+    .task-card .task-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .task-card .task-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .tag-anl { background: var(--green-dim); color: var(--green); }
+    .tag-erc { background: var(--purple-dim); color: var(--purple); }
+    .tag-personal { background: var(--accent); color: white; opacity: 0.7; }
+
+    .priority-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    .priority-urgent { background: var(--red); }
+    .priority-high { background: var(--orange); }
+    .priority-medium { background: var(--yellow); }
+    .priority-low { background: var(--muted); }
+
+    .avatar-sm {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .task-actions {
+      display: none;
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      gap: 2px;
+    }
+
+    .task-card:hover .task-actions { display: flex; }
+
+    .task-action-btn {
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .task-action-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+    .due-date { font-size: 11px; }
+    .due-overdue { color: var(--red); font-weight: 600; }
+    .due-today { color: var(--yellow); font-weight: 600; }
+    .due-upcoming { color: var(--muted); }
+
+    /* ---- TEAM PAGE ---- */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .team-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .team-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .avatar-lg {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .team-card-header .name { font-weight: 600; font-size: 15px; }
+    .team-card-header .role { font-size: 12px; color: var(--muted); }
+
+    .team-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .team-stat {
+      text-align: center;
+      padding: 8px 4px;
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    .team-stat .num { font-size: 18px; font-weight: 700; }
+    .team-stat .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+
+    .team-task-list { max-height: 200px; overflow-y: auto; }
+
+    .team-task-item {
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .team-task-item:last-child { border-bottom: none; }
+
+    /* ---- ACTIVITY PAGE ---- */
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .activity-item {
+      background: var(--card);
+      padding: 12px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .activity-item:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+    .activity-item:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+
+    .activity-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .activity-icon.content { background: var(--orange-dim); }
+    .activity-icon.task { background: var(--green-dim); }
+    .activity-icon.system { background: var(--accent); opacity: 0.2; }
+
+    .activity-content { flex: 1; }
+    .activity-title { font-weight: 500; }
+    .activity-details { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .activity-time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+    /* ---- TOOLBAR ---- */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      color: var(--text);
+      background: var(--card);
+      border-color: var(--border-light);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-light); }
+
+    /* ---- MODAL ---- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 480px;
+      max-width: 90vw;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      font-size: 13px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    .form-group textarea { min-height: 80px; resize: vertical; }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    /* ---- RESPONSIVE ---- */
+    @media (max-width: 1024px) {
+      .kanban { grid-template-columns: repeat(3, 1fr); }
+      .overview-grid { grid-template-columns: repeat(2, 1fr); }
+      .overview-body { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .topnav { padding: 0 12px; }
+      .main { padding: 12px; }
+      .kanban { grid-template-columns: 1fr; }
+      .overview-grid { grid-template-columns: 1fr 1fr; }
+      .tabs { overflow-x: auto; }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    /* ---- MEMBER BADGE ---- */
+    .member-badge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: var(--accent);
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+    }
+
+    .member-badge.visible { display: flex; }
+
+    .member-badge .badge-dismiss {
+      cursor: pointer;
+      opacity: 0.7;
+      font-size: 14px;
+      margin-left: 2px;
+    }
+
+    .member-badge .badge-dismiss:hover { opacity: 1; }
+
+    /* ---- MEMBER FILTER DROPDOWN ---- */
+    .member-filter-select {
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .member-filter-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* ---- SUBTASK STYLES ---- */
+    .subtask-progress {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .subtask-progress-bar {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .subtask-progress-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .subtask-list-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--accent);
+      cursor: pointer;
+      margin-top: 4px;
+      user-select: none;
+    }
+
+    .subtask-list-toggle:hover { text-decoration: underline; }
+
+    .subtask-inline-list {
+      display: none;
+      margin-top: 6px;
+      padding-left: 8px;
+      border-left: 2px solid var(--border);
+    }
+
+    .subtask-inline-list.expanded { display: block; }
+
+    .subtask-inline-item {
+      padding: 3px 0;
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .subtask-inline-item .subtask-status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .subtask-inline-item .subtask-status-dot.done { background: var(--green); }
+    .subtask-inline-item .subtask-status-dot.in_progress { background: var(--yellow); }
+    .subtask-inline-item .subtask-status-dot.todo { background: var(--accent); }
+    .subtask-inline-item .subtask-status-dot.backlog { background: var(--muted); }
+    .subtask-inline-item .subtask-status-dot.review { background: var(--purple); }
+
+    .subtask-inline-item.is-done { text-decoration: line-through; color: var(--muted); }
+
+    /* Subtask section in modal */
+    .subtask-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .subtask-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .subtask-section-header label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+
+    .btn-sm:hover { background: var(--card); border-color: var(--border-light); color: var(--text); }
+
+    .modal-subtask-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .modal-subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .modal-subtask-item .subtask-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .modal-subtask-item .subtask-title { flex: 1; }
+    .modal-subtask-item .subtask-assignee { color: var(--muted); font-size: 11px; }
+
+    .modal-subtask-item .subtask-edit-btn {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .modal-subtask-item .subtask-edit-btn:hover { color: var(--accent); }
+
+    .subtask-add-form {
+      display: none;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .subtask-add-form.visible { display: flex; }
+
+    .subtask-add-form input {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    .subtask-add-form input:focus { outline: none; border-color: var(--accent); }
+
+    .subtask-add-form select {
+      padding: 6px 8px;
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAVIGATION -->
+<nav class="topnav">
+  <div class="topnav-left">
+    <div class="brand">
+      <div class="logo">MC</div>
+      Mission Control
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-page="overview">Overview</div>
+      <div class="tab" data-page="tasks">Tasks</div>
+      <div class="tab" data-page="team">Team</div>
+      <div class="tab" data-page="activity">Activity</div>
+    </div>
+  </div>
+  <div class="topnav-right">
+    <div class="member-badge" id="member-badge">
+      <span>Viewing as: <strong id="member-badge-name"></strong></span>
+      <span class="badge-dismiss" onclick="clearMemberFilter()" title="View all (admin)">&times;</span>
+    </div>
+    <span id="clock"></span>
+    <span style="color:var(--border)">|</span>
+    <span id="refresh-status" style="cursor:pointer" onclick="loadAll()">Refresh</span>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- OVERVIEW PAGE -->
+  <div class="page active" id="page-overview">
+    <div class="overview-grid">
+      <div class="metric-card">
+        <div class="metric-label">Open Tasks</div>
+        <div class="metric-value" id="m-open-tasks">—</div>
+        <div class="metric-sub" id="m-open-sub">loading...</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Due Today</div>
+        <div class="metric-value" id="m-due-today" style="color:var(--yellow)">—</div>
+        <div class="metric-sub" id="m-due-sub">loading...</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Overdue</div>
+        <div class="metric-value" id="m-overdue" style="color:var(--red)">—</div>
+        <div class="metric-sub" id="m-overdue-sub">loading...</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Completed This Week</div>
+        <div class="metric-value" id="m-completed" style="color:var(--green)">—</div>
+        <div class="metric-sub" id="m-completed-sub">loading...</div>
+      </div>
+    </div>
+
+    <div class="overview-body">
+      <div class="card">
+        <div class="card-header">Today's Priority Tasks</div>
+        <div id="today-tasks"><div class="empty-state">Loading...</div></div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">Recent Bot Activity</div>
+          <div id="recent-activity"><div class="empty-state">Loading...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">Team Status</div>
+          <div id="team-summary"><div class="empty-state">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS PAGE (KANBAN) -->
+  <div class="page" id="page-tasks">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</div>
+        <div class="filter-btn" data-filter="ANL" onclick="setFilter('ANL')">ANL</div>
+        <div class="filter-btn" data-filter="ERC" onclick="setFilter('ERC')">ERC</div>
+        <div class="filter-btn" data-filter="Personal" onclick="setFilter('Personal')">Personal</div>
+        <span style="color:var(--border);margin:0 4px">|</span>
+        <select class="member-filter-select" id="member-filter-select" onchange="setMemberFilter(this.value)">
+          <option value="">All Members</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="openNewTaskModal()">+ New Task</button>
+    </div>
+    <div class="kanban">
+      <div class="kanban-column col-backlog">
+        <div class="kanban-column-header">
+          <span class="col-title">Backlog</span>
+          <span class="col-count" id="count-backlog">0</span>
+        </div>
+        <div class="kanban-cards" id="col-backlog"></div>
+      </div>
+      <div class="kanban-column col-todo">
+        <div class="kanban-column-header">
+          <span class="col-title">To Do</span>
+          <span class="col-count" id="count-todo">0</span>
+        </div>
+        <div class="kanban-cards" id="col-todo"></div>
+      </div>
+      <div class="kanban-column col-in_progress">
+        <div class="kanban-column-header">
+          <span class="col-title">In Progress</span>
+          <span class="col-count" id="count-in_progress">0</span>
+        </div>
+        <div class="kanban-cards" id="col-in_progress"></div>
+      </div>
+      <div class="kanban-column col-review">
+        <div class="kanban-column-header">
+          <span class="col-title">Review</span>
+          <span class="col-count" id="count-review">0</span>
+        </div>
+        <div class="kanban-cards" id="col-review"></div>
+      </div>
+      <div class="kanban-column col-done">
+        <div class="kanban-column-header">
+          <span class="col-title">Done</span>
+          <span class="col-count" id="count-done">0</span>
+        </div>
+        <div class="kanban-cards" id="col-done"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEAM PAGE -->
+  <div class="page" id="page-team">
+    <div class="team-grid" id="team-grid">
+      <div class="empty-state">Loading team...</div>
+    </div>
+  </div>
+
+  <!-- ACTIVITY PAGE -->
+  <div class="page" id="page-activity">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="filter-btn active" onclick="setActivityFilter('all', this)">All</div>
+        <div class="filter-btn" onclick="setActivityFilter('content', this)">Content</div>
+        <div class="filter-btn" onclick="setActivityFilter('task', this)">Tasks</div>
+        <div class="filter-btn" onclick="setActivityFilter('system', this)">System</div>
+      </div>
+    </div>
+    <div class="activity-list" id="activity-list">
+      <div class="empty-state">Loading activity...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- NEW TASK MODAL -->
+<div class="modal-overlay" id="task-modal">
+  <div class="modal">
+    <h3 id="modal-title">New Task</h3>
+    <input type="hidden" id="task-edit-id">
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="task-title" placeholder="What needs to be done?">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="task-desc" placeholder="Add details (optional)"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Business</label>
+        <select id="task-business">
+          <option value="ANL">ANL</option>
+          <option value="ERC">ERC</option>
+          <option value="Personal">Personal</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="task-priority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Assignee</label>
+        <select id="task-assignee">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" id="task-due">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="task-status">
+        <option value="backlog">Backlog</option>
+        <option value="todo" selected>To Do</option>
+        <option value="in_progress">In Progress</option>
+        <option value="review">Review</option>
+        <option value="done">Done</option>
+      </select>
+    </div>
+    <div class="subtask-section" id="subtask-section" style="display:none">
+      <div class="subtask-section-header">
+        <label>Subtasks</label>
+        <button class="btn-sm" onclick="showSubtaskAddForm()">+ Add Subtask</button>
+      </div>
+      <div class="modal-subtask-list" id="modal-subtask-list"></div>
+      <div class="subtask-add-form" id="subtask-add-form">
+        <input type="text" id="subtask-add-title" placeholder="Subtask title...">
+        <select id="subtask-add-assignee">
+          <option value="">Unassigned</option>
+        </select>
+        <button class="btn-sm" onclick="addSubtask()" style="background:var(--accent);color:white;border-color:var(--accent)">Add</button>
+        <button class="btn-sm" onclick="hideSubtaskAddForm()">Cancel</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeTaskModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // CONFIG — Update with your Supabase credentials
+  // ============================================================
+  const SUPABASE_URL = 'https://rxyxynjkskjwlwsjivwq.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4eXh5bmprc2tqd2x3c2ppdndxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExOTA2NzEsImV4cCI6MjA4Njc2NjY3MX0.LI4gNKGwMvXF-0HSd04FN5NoldsdKzNioAZ-FfWem74';
+  const TZ = 'America/New_York';
+
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  let allTasks = [];
+  let allMembers = [];
+  let allActivity = [];
+  let currentFilter = 'all';
+  let activityFilter = 'all';
+  let currentMemberFilter = ''; // member ID to filter by
+  let memberFilterName = '';    // display name for the badge
+
+  // Parse ?member= URL parameter on load
+  (function parseUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const memberParam = params.get('member');
+    if (memberParam) {
+      memberFilterName = memberParam.trim();
+    }
+  })();
+
+  // ============================================================
+  // SUPABASE HELPERS
+  // ============================================================
+  async function supaFetch(path, opts = {}) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers, ...opts });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
+  }
+
+  async function supaInsert(table, data) {
+    return supaFetch(table, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async function supaUpdate(table, id, data) {
+    return supaFetch(`${table}?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // ============================================================
+  // DATA LOADERS
+  // ============================================================
+  async function loadTasks() {
+    try {
+      allTasks = await supaFetch('team_tasks?select=*,team_members(name,avatar_color,role)&order=sort_order.asc,created_at.desc');
+    } catch (e) {
+      console.error('Failed to load tasks:', e);
+      allTasks = [];
+    }
+  }
+
+  async function loadMembers() {
+    try {
+      allMembers = await supaFetch('team_members?is_active=eq.true&order=is_bot.asc,name.asc');
+      populateAssigneeDropdown();
+    } catch (e) {
+      console.error('Failed to load members:', e);
+      allMembers = [];
+    }
+  }
+
+  async function loadActivity() {
+    try {
+      allActivity = await supaFetch('agent_activity?order=created_at.desc&limit=50');
+    } catch (e) {
+      console.error('Failed to load activity:', e);
+      allActivity = [];
+    }
+  }
+
+  // ============================================================
+  // RENDER: OVERVIEW
+  // ============================================================
+  function renderOverview() {
+    const now = new Date();
+    const todayStart = new Date(now.toLocaleDateString('en-US', { timeZone: TZ }));
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+    // Use filtered tasks when member filter is active
+    const baseTasks = currentMemberFilter
+      ? allTasks.filter(t => t.assignee_id === currentMemberFilter)
+      : allTasks;
+
+    const open = baseTasks.filter(t => t.status !== 'done');
+    const dueToday = baseTasks.filter(t => {
+      if (!t.due_date || t.status === 'done') return false;
+      const due = new Date(t.due_date);
+      return due.toDateString() === todayStart.toDateString();
+    });
+    const overdue = baseTasks.filter(t => {
+      if (!t.due_date || t.status === 'done') return false;
+      return new Date(t.due_date) < todayStart;
+    });
+    const completedWeek = baseTasks.filter(t => {
+      if (!t.completed_at) return false;
+      return new Date(t.completed_at) >= weekStart;
+    });
+
+    document.getElementById('m-open-tasks').textContent = open.length;
+    document.getElementById('m-open-sub').textContent = `${baseTasks.filter(t => t.status === 'in_progress').length} in progress`;
+    document.getElementById('m-due-today').textContent = dueToday.length;
+    document.getElementById('m-due-sub').textContent = dueToday.length > 0 ? dueToday.map(t => t.title).slice(0, 2).join(', ') : 'All clear';
+    document.getElementById('m-overdue').textContent = overdue.length;
+    document.getElementById('m-overdue-sub').textContent = overdue.length > 0 ? 'Needs attention' : 'None overdue';
+    document.getElementById('m-completed').textContent = completedWeek.length;
+    document.getElementById('m-completed-sub').textContent = 'this week';
+
+    // Today's priority tasks
+    const priority = [...dueToday, ...overdue, ...baseTasks.filter(t => t.priority === 'urgent' && t.status !== 'done')]
+      .filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i)
+      .slice(0, 8);
+
+    const todayEl = document.getElementById('today-tasks');
+    if (priority.length === 0) {
+      todayEl.innerHTML = '<div class="empty-state">No priority tasks for today</div>';
+    } else {
+      todayEl.innerHTML = priority.map(t => {
+        const member = allMembers.find(m => m.id === t.assignee_id);
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:13px">
+          <span class="priority-dot priority-${t.priority}"></span>
+          <span class="tag tag-${(t.business||'').toLowerCase()}">${t.business || '—'}</span>
+          <span style="flex:1">${t.title}</span>
+          ${member ? `<span class="avatar-sm" style="background:${member.avatar_color}">${member.name[0]}</span>` : ''}
+          ${formatDue(t.due_date)}
+        </div>`;
+      }).join('');
+    }
+
+    // Recent activity
+    const recentEl = document.getElementById('recent-activity');
+    if (allActivity.length === 0) {
+      recentEl.innerHTML = '<div class="empty-state">No bot activity yet</div>';
+    } else {
+      recentEl.innerHTML = allActivity.slice(0, 5).map(a => `
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <span style="color:var(--accent);font-weight:500">${a.agent_name}</span>
+          <span style="color:var(--muted)"> ${a.title}</span>
+          <span style="float:right;color:var(--muted)">${timeAgo(a.created_at)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Team summary
+    const teamEl = document.getElementById('team-summary');
+    const humans = allMembers.filter(m => !m.is_bot);
+    teamEl.innerHTML = humans.map(m => {
+      const memberTasks = allTasks.filter(t => t.assignee_id === m.id && t.status !== 'done');
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px">
+        <span class="avatar-sm" style="background:${m.avatar_color}">${m.name[0]}</span>
+        <span style="flex:1">${m.name}</span>
+        <span style="color:var(--muted)">${memberTasks.length} tasks</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ============================================================
+  // RENDER: KANBAN
+  // ============================================================
+  function renderKanban() {
+    const statuses = ['backlog', 'todo', 'in_progress', 'review', 'done'];
+
+    // Start with business filter
+    let filtered = currentFilter === 'all'
+      ? allTasks
+      : allTasks.filter(t => t.business === currentFilter);
+
+    // Only show parent tasks (no subtasks) at top level in kanban
+    let parentTasks = filtered.filter(t => !t.parent_task_id);
+
+    // Apply member filter
+    if (currentMemberFilter) {
+      const memberVisibleIds = new Set();
+      // Include tasks directly assigned to member
+      parentTasks.filter(t => t.assignee_id === currentMemberFilter).forEach(t => memberVisibleIds.add(t.id));
+      // Include parent tasks that have subtasks assigned to member
+      filtered.filter(t => t.parent_task_id && t.assignee_id === currentMemberFilter).forEach(sub => {
+        memberVisibleIds.add(sub.parent_task_id);
+      });
+      parentTasks = parentTasks.filter(t => memberVisibleIds.has(t.id));
+    }
+
+    statuses.forEach(status => {
+      const col = document.getElementById(`col-${status}`);
+      const tasks = parentTasks.filter(t => t.status === status);
+      document.getElementById(`count-${status}`).textContent = tasks.length;
+
+      if (tasks.length === 0) {
+        col.innerHTML = '<div class="empty-state">No tasks</div>';
+        return;
+      }
+
+      col.innerHTML = tasks.map(t => renderTaskCard(t, statuses, status)).join('');
+    });
+  }
+
+  function renderTaskCard(t, statuses, status) {
+    const member = allMembers.find(m => m.id === t.assignee_id);
+    const prevStatus = statuses[statuses.indexOf(status) - 1];
+    const nextStatus = statuses[statuses.indexOf(status) + 1];
+
+    // Get subtasks for this parent
+    const subtasks = getSubtasks(t.id);
+    const subtasksDone = subtasks.filter(s => s.status === 'done').length;
+    const subtasksTotal = subtasks.length;
+
+    // If member filter active, highlight which subtasks are theirs
+    let subtaskHtml = '';
+    if (subtasksTotal > 0) {
+      const pct = subtasksTotal > 0 ? Math.round((subtasksDone / subtasksTotal) * 100) : 0;
+      subtaskHtml += `
+        <div class="subtask-progress">
+          <span>${subtasksDone}/${subtasksTotal} subtasks</span>
+          <div class="subtask-progress-bar">
+            <div class="subtask-progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="subtask-list-toggle" onclick="event.stopPropagation();toggleSubtaskList('${t.id}')">
+          <span id="subtask-toggle-icon-${t.id}">&#9654;</span><span id="subtask-toggle-text-${t.id}"> Show subtasks</span>
+        </div>
+        <div class="subtask-inline-list" id="subtask-list-${t.id}">
+          ${subtasks.map(s => {
+            const sMember = allMembers.find(m => m.id === s.assignee_id);
+            const isHighlighted = currentMemberFilter && s.assignee_id === currentMemberFilter;
+            return `<div class="subtask-inline-item ${s.status === 'done' ? 'is-done' : ''}" style="${isHighlighted ? 'color:var(--text);font-weight:500' : ''}" onclick="event.stopPropagation();openEditTaskModal('${s.id}')">
+              <span class="subtask-status-dot ${s.status}"></span>
+              <span style="flex:1">${s.title}</span>
+              ${sMember ? `<span class="avatar-sm" style="background:${sMember.avatar_color};width:16px;height:16px;font-size:8px" title="${sMember.name}">${sMember.name[0]}</span>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    return `<div class="task-card" onclick="openEditTaskModal('${t.id}')">
+      <div class="task-actions">
+        ${prevStatus ? `<button class="task-action-btn" onclick="event.stopPropagation();moveTask('${t.id}','${prevStatus}')" title="Move left">&#8592;</button>` : ''}
+        ${nextStatus ? `<button class="task-action-btn" onclick="event.stopPropagation();moveTask('${t.id}','${nextStatus}')" title="Move right">&#8594;</button>` : ''}
+      </div>
+      <div class="task-tags">
+        ${t.business ? `<span class="tag tag-${t.business.toLowerCase()}">${t.business}</span>` : ''}
+        <span class="priority-dot priority-${t.priority}" style="margin-top:3px"></span>
+      </div>
+      <div class="task-title">${t.title}</div>
+      <div class="task-meta">
+        <span>${formatDue(t.due_date)}</span>
+        ${member ? `<span class="avatar-sm" style="background:${member.avatar_color}" title="${member.name}">${member.name[0]}</span>` : '<span></span>'}
+      </div>
+      ${subtaskHtml}
+    </div>`;
+  }
+
+  function toggleSubtaskList(taskId) {
+    const list = document.getElementById(`subtask-list-${taskId}`);
+    const icon = document.getElementById(`subtask-toggle-icon-${taskId}`);
+    const text = document.getElementById(`subtask-toggle-text-${taskId}`);
+    if (list) {
+      const isExpanded = list.classList.toggle('expanded');
+      if (icon) icon.innerHTML = isExpanded ? '&#9660;' : '&#9654;';
+      if (text) text.textContent = isExpanded ? ' Hide subtasks' : ' Show subtasks';
+    }
+  }
+
+  // ============================================================
+  // RENDER: TEAM
+  // ============================================================
+  function renderTeam() {
+    const grid = document.getElementById('team-grid');
+    const humans = allMembers.filter(m => !m.is_bot);
+
+    grid.innerHTML = humans.map(m => {
+      const tasks = allTasks.filter(t => t.assignee_id === m.id);
+      const open = tasks.filter(t => t.status !== 'done');
+      const done = tasks.filter(t => t.status === 'done');
+      const inProgress = tasks.filter(t => t.status === 'in_progress');
+
+      return `<div class="team-card">
+        <div class="team-card-header">
+          <div class="avatar-lg" style="background:${m.avatar_color}">${m.name[0]}</div>
+          <div>
+            <div class="name">${m.name}</div>
+            <div class="role">${m.role || ''} ${m.business && m.business !== 'Both' ? `• ${m.business}` : ''}</div>
+          </div>
+        </div>
+        <div class="team-stats">
+          <div class="team-stat">
+            <div class="num">${open.length}</div>
+            <div class="lbl">Open</div>
+          </div>
+          <div class="team-stat">
+            <div class="num" style="color:var(--yellow)">${inProgress.length}</div>
+            <div class="lbl">Active</div>
+          </div>
+          <div class="team-stat">
+            <div class="num" style="color:var(--green)">${done.length}</div>
+            <div class="lbl">Done</div>
+          </div>
+        </div>
+        <div class="team-task-list">
+          ${open.length === 0 ? '<div class="empty-state">No active tasks</div>' :
+            open.slice(0, 5).map(t => `
+              <div class="team-task-item">
+                <span class="priority-dot priority-${t.priority}"></span>
+                <span style="flex:1">${t.title}</span>
+                <span class="tag tag-${(t.business||'').toLowerCase()}" style="font-size:9px">${t.business || ''}</span>
+              </div>
+            `).join('')}
+          ${open.length > 5 ? `<div style="font-size:11px;color:var(--muted);padding:4px 0">+${open.length - 5} more</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    // Bot agents section
+    const bots = allMembers.filter(m => m.is_bot);
+    if (bots.length > 0) {
+      grid.innerHTML += `<div class="team-card" style="border-color:var(--cyan)33">
+        <div class="card-header" style="margin-bottom:12px">Bot Agents</div>
+        ${bots.map(b => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span class="avatar-sm" style="background:${b.avatar_color}">${b.name[0]}</span>
+          <div>
+            <div style="font-size:13px;font-weight:500">${b.name}</div>
+            <div style="font-size:11px;color:var(--muted)">${b.role || ''}</div>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }
+  }
+
+  // ============================================================
+  // RENDER: ACTIVITY
+  // ============================================================
+  function renderActivity() {
+    const el = document.getElementById('activity-list');
+    const filtered = activityFilter === 'all'
+      ? allActivity
+      : allActivity.filter(a => (a.action_type || '').includes(activityFilter));
+
+    if (filtered.length === 0) {
+      el.innerHTML = '<div class="empty-state">No activity recorded yet. Activity will appear here as GoBot and agents perform actions.</div>';
+      return;
+    }
+
+    el.innerHTML = filtered.map(a => {
+      const icon = a.action_type === 'content' ? '&#9998;' : a.action_type === 'task' ? '&#9745;' : '&#9881;';
+      const iconClass = a.action_type || 'system';
+      return `<div class="activity-item">
+        <div class="activity-icon ${iconClass}">${icon}</div>
+        <div class="activity-content">
+          <div class="activity-title">${a.title}</div>
+          <div class="activity-details">${a.agent_name}${a.business ? ` • ${a.business}` : ''}${a.details ? ` — ${a.details}` : ''}</div>
+        </div>
+        <div class="activity-time">${timeAgo(a.created_at)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ============================================================
+  // TASK MODAL
+  // ============================================================
+  function populateAssigneeDropdown() {
+    const select = document.getElementById('task-assignee');
+    select.innerHTML = '<option value="">Unassigned</option>';
+    allMembers.filter(m => !m.is_bot).forEach(m => {
+      select.innerHTML += `<option value="${m.id}">${m.name} (${m.role || m.business || ''})</option>`;
+    });
+
+    // Populate subtask assignee dropdown
+    const subtaskSelect = document.getElementById('subtask-add-assignee');
+    if (subtaskSelect) {
+      subtaskSelect.innerHTML = '<option value="">Unassigned</option>';
+      allMembers.filter(m => !m.is_bot).forEach(m => {
+        subtaskSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+      });
+    }
+
+    // Populate member filter dropdown
+    const memberFilterSelect = document.getElementById('member-filter-select');
+    if (memberFilterSelect) {
+      memberFilterSelect.innerHTML = '<option value="">All Members</option>';
+      allMembers.filter(m => !m.is_bot).forEach(m => {
+        memberFilterSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+      });
+    }
+
+    // Apply URL ?member= param now that members are loaded
+    if (memberFilterName && !currentMemberFilter) {
+      const match = allMembers.find(m => m.name.toLowerCase() === memberFilterName.toLowerCase());
+      if (match) {
+        currentMemberFilter = match.id;
+        memberFilterName = match.name;
+        updateMemberBadge();
+        if (memberFilterSelect) memberFilterSelect.value = match.id;
+      }
+    }
+  }
+
+  function openNewTaskModal(parentTaskId) {
+    document.getElementById('modal-title').textContent = parentTaskId ? 'New Subtask' : 'New Task';
+    document.getElementById('modal-save-btn').textContent = parentTaskId ? 'Create Subtask' : 'Create Task';
+    document.getElementById('task-edit-id').value = '';
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-desc').value = '';
+    document.getElementById('task-business').value = 'ANL';
+    document.getElementById('task-priority').value = 'medium';
+    document.getElementById('task-assignee').value = '';
+    document.getElementById('task-due').value = '';
+    document.getElementById('task-status').value = 'todo';
+    // Hide subtask section for new tasks (show it after first save)
+    document.getElementById('subtask-section').style.display = 'none';
+    hideSubtaskAddForm();
+    document.getElementById('task-modal').classList.add('open');
+    document.getElementById('task-title').focus();
+  }
+
+  function openEditTaskModal(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+    document.getElementById('modal-title').textContent = task.parent_task_id ? 'Edit Subtask' : 'Edit Task';
+    document.getElementById('modal-save-btn').textContent = 'Save Changes';
+    document.getElementById('task-edit-id').value = task.id;
+    document.getElementById('task-title').value = task.title;
+    document.getElementById('task-desc').value = task.description || '';
+    document.getElementById('task-business').value = task.business || 'ANL';
+    document.getElementById('task-priority').value = task.priority || 'medium';
+    document.getElementById('task-assignee').value = task.assignee_id || '';
+    document.getElementById('task-due').value = task.due_date ? task.due_date.split('T')[0] : '';
+    document.getElementById('task-status').value = task.status;
+
+    // Show subtask section for parent tasks (not for subtasks themselves)
+    const subtaskSection = document.getElementById('subtask-section');
+    if (!task.parent_task_id) {
+      subtaskSection.style.display = 'block';
+      renderModalSubtasks(task.id);
+    } else {
+      subtaskSection.style.display = 'none';
+    }
+
+    hideSubtaskAddForm();
+    document.getElementById('task-modal').classList.add('open');
+  }
+
+  function closeTaskModal() {
+    document.getElementById('task-modal').classList.remove('open');
+  }
+
+  // ============================================================
+  // SUBTASK MANAGEMENT
+  // ============================================================
+  function renderModalSubtasks(parentId) {
+    const list = document.getElementById('modal-subtask-list');
+    const subtasks = getSubtasks(parentId);
+
+    if (subtasks.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0">No subtasks yet</div>';
+      return;
+    }
+
+    list.innerHTML = subtasks.map(s => {
+      const sMember = allMembers.find(m => m.id === s.assignee_id);
+      return `<div class="modal-subtask-item">
+        <span class="subtask-status-dot ${s.status}"></span>
+        <span class="subtask-title ${s.status === 'done' ? 'is-done' : ''}" style="${s.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${s.title}</span>
+        ${sMember ? `<span class="subtask-assignee">${sMember.name}</span>` : ''}
+        <span class="subtask-edit-btn" onclick="openEditTaskModal('${s.id}')" title="Edit subtask">&#9998;</span>
+      </div>`;
+    }).join('');
+  }
+
+  function showSubtaskAddForm() {
+    document.getElementById('subtask-add-form').classList.add('visible');
+    document.getElementById('subtask-add-title').focus();
+  }
+
+  function hideSubtaskAddForm() {
+    document.getElementById('subtask-add-form').classList.remove('visible');
+    document.getElementById('subtask-add-title').value = '';
+    document.getElementById('subtask-add-assignee').value = '';
+  }
+
+  async function addSubtask() {
+    const parentId = document.getElementById('task-edit-id').value;
+    if (!parentId) return;
+
+    const title = document.getElementById('subtask-add-title').value.trim();
+    if (!title) { alert('Subtask title is required'); return; }
+
+    const parentTask = allTasks.find(t => t.id === parentId);
+    const assigneeId = document.getElementById('subtask-add-assignee').value || null;
+
+    const data = {
+      title: title,
+      parent_task_id: parentId,
+      business: parentTask ? parentTask.business : 'ANL',
+      priority: 'medium',
+      status: 'todo',
+      assignee_id: assigneeId,
+    };
+
+    try {
+      await supaInsert('team_tasks', data);
+      hideSubtaskAddForm();
+      await loadTasks();
+      renderModalSubtasks(parentId);
+      renderKanban();
+      renderOverview();
+    } catch (e) {
+      console.error('Failed to add subtask:', e);
+      alert('Failed to add subtask: ' + e.message);
+    }
+  }
+
+  async function saveTask() {
+    const editId = document.getElementById('task-edit-id').value;
+    const data = {
+      title: document.getElementById('task-title').value.trim(),
+      description: document.getElementById('task-desc').value.trim() || null,
+      business: document.getElementById('task-business').value,
+      priority: document.getElementById('task-priority').value,
+      assignee_id: document.getElementById('task-assignee').value || null,
+      due_date: document.getElementById('task-due').value ? new Date(document.getElementById('task-due').value).toISOString() : null,
+      status: document.getElementById('task-status').value,
+    };
+
+    if (!data.title) { alert('Task title is required'); return; }
+
+    if (data.status === 'done' && !editId) {
+      data.completed_at = new Date().toISOString();
+    }
+
+    try {
+      if (editId) {
+        if (data.status === 'done') data.completed_at = new Date().toISOString();
+        await supaUpdate('team_tasks', editId, data);
+      } else {
+        await supaInsert('team_tasks', data);
+      }
+      closeTaskModal();
+      await loadTasks();
+      renderAll();
+    } catch (e) {
+      console.error('Save failed:', e);
+      alert('Failed to save task: ' + e.message);
+    }
+  }
+
+  async function moveTask(taskId, newStatus) {
+    const data = { status: newStatus };
+    if (newStatus === 'done') data.completed_at = new Date().toISOString();
+    try {
+      await supaUpdate('team_tasks', taskId, data);
+      const task = allTasks.find(t => t.id === taskId);
+      if (task) task.status = newStatus;
+      renderKanban();
+      renderOverview();
+    } catch (e) {
+      console.error('Move failed:', e);
+    }
+  }
+
+  // ============================================================
+  // FILTERS
+  // ============================================================
+  function setFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('#page-tasks .filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.filter === filter);
+    });
+    renderKanban();
+  }
+
+  function setActivityFilter(filter, el) {
+    activityFilter = filter;
+    document.querySelectorAll('#page-activity .filter-btn').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderActivity();
+  }
+
+  function setMemberFilter(memberId) {
+    currentMemberFilter = memberId;
+    if (memberId) {
+      const member = allMembers.find(m => m.id === memberId);
+      memberFilterName = member ? member.name : '';
+    } else {
+      memberFilterName = '';
+    }
+    updateMemberBadge();
+    renderAll();
+  }
+
+  function clearMemberFilter() {
+    currentMemberFilter = '';
+    memberFilterName = '';
+    const memberFilterSelect = document.getElementById('member-filter-select');
+    if (memberFilterSelect) memberFilterSelect.value = '';
+    updateMemberBadge();
+    // Remove ?member= from URL without reload
+    const url = new URL(window.location);
+    url.searchParams.delete('member');
+    window.history.replaceState({}, '', url);
+    renderAll();
+  }
+
+  function updateMemberBadge() {
+    const badge = document.getElementById('member-badge');
+    const badgeName = document.getElementById('member-badge-name');
+    if (currentMemberFilter && memberFilterName) {
+      badgeName.textContent = memberFilterName;
+      badge.classList.add('visible');
+    } else {
+      badge.classList.remove('visible');
+    }
+  }
+
+  // Helper: get tasks relevant to a member (assigned to them, or subtasks assigned to them)
+  function getTasksForMember(memberId) {
+    // Tasks directly assigned to this member (parent tasks only)
+    const directTasks = allTasks.filter(t => t.assignee_id === memberId && !t.parent_task_id);
+    // Subtasks assigned to this member
+    const memberSubtasks = allTasks.filter(t => t.assignee_id === memberId && t.parent_task_id);
+    // Parent tasks of those subtasks (even if parent is assigned to someone else)
+    const parentIds = [...new Set(memberSubtasks.map(t => t.parent_task_id))];
+    const parentTasks = parentIds.map(pid => allTasks.find(t => t.id === pid)).filter(Boolean);
+    // Combine: direct tasks + parent tasks containing member's subtasks (deduplicated)
+    const all = [...directTasks, ...parentTasks].filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i);
+    return all;
+  }
+
+  function getSubtasks(parentId) {
+    return allTasks.filter(t => t.parent_task_id === parentId);
+  }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+  function timeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  }
+
+  function formatDue(dueDate) {
+    if (!dueDate) return '';
+    const now = new Date();
+    const due = new Date(dueDate);
+    const todayStr = now.toLocaleDateString('en-US', { timeZone: TZ });
+    const dueStr = due.toLocaleDateString('en-US', { timeZone: TZ });
+    const diffDays = Math.ceil((due - now) / 86400000);
+
+    if (dueStr === todayStr) {
+      return `<span class="due-date due-today">Today</span>`;
+    } else if (diffDays < 0) {
+      return `<span class="due-date due-overdue">${Math.abs(diffDays)}d overdue</span>`;
+    } else if (diffDays <= 3) {
+      return `<span class="due-date due-today">In ${diffDays}d</span>`;
+    } else {
+      const formatted = due.toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' });
+      return `<span class="due-date due-upcoming">${formatted}</span>`;
+    }
+  }
+
+  // ============================================================
+  // NAV
+  // ============================================================
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`page-${tab.dataset.page}`).classList.add('active');
+    });
+  });
+
+  // Close modal on overlay click
+  document.getElementById('task-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('task-modal')) closeTaskModal();
+  });
+
+  // Keyboard shortcut: Escape to close modal, N for new task
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTaskModal();
+    if (e.key === 'n' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      const tasksPage = document.getElementById('page-tasks');
+      if (tasksPage.classList.contains('active')) openNewTaskModal();
+    }
+  });
+
+  // Enter key to submit subtask add form
+  document.getElementById('subtask-add-title').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addSubtask(); }
+  });
+
+  // Clock
+  function updateClock() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  }
+  setInterval(updateClock, 30000);
+  updateClock();
+
+  // ============================================================
+  // LOAD ALL
+  // ============================================================
+  function renderAll() {
+    renderOverview();
+    renderKanban();
+    renderTeam();
+    renderActivity();
+  }
+
+  async function loadAll() {
+    document.getElementById('refresh-status').textContent = 'Loading...';
+    await Promise.all([loadTasks(), loadMembers(), loadActivity()]);
+    renderAll();
+    document.getElementById('refresh-status').textContent =
+      `Updated ${new Date().toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  // Initial load
+  loadAll();
+
+  // Auto-refresh every 30 seconds
+  setInterval(loadAll, 30000);
+</script>
+
+</body>
+</html>
