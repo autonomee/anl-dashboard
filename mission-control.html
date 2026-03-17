@@ -844,7 +844,7 @@
     <div class="tabs">
       <div class="tab active" data-page="overview">Overview</div>
       <div class="tab" data-page="tasks">Tasks</div>
-      <div class="tab" data-page="team">Team</div>
+      <div class="tab admin-only" data-page="team">Team</div>
       <div class="tab" data-page="activity">Activity</div>
     </div>
   </div>
@@ -888,16 +888,27 @@
     </div>
 
     <div class="overview-body">
-      <div class="card">
-        <div class="card-header">Today's Priority Tasks</div>
-        <div id="today-tasks"><div class="empty-state">Loading...</div></div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">Today's Priority Tasks</div>
+          <div id="today-tasks"><div class="empty-state">Loading...</div></div>
+        </div>
+        <!-- Delegated Tasks — admin only: shows tasks you assigned to others -->
+        <div class="card admin-only" id="delegated-card" style="margin-bottom:16px">
+          <div class="card-header">Delegated to Team <span class="count" id="delegated-count">0</span></div>
+          <div id="delegated-tasks"><div class="empty-state">Loading...</div></div>
+        </div>
       </div>
       <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">Bot Agents</div>
+          <div id="bot-agents-overview"><div class="empty-state">Loading...</div></div>
+        </div>
         <div class="card" style="margin-bottom:16px">
           <div class="card-header">Recent Bot Activity</div>
           <div id="recent-activity"><div class="empty-state">Loading...</div></div>
         </div>
-        <div class="card">
+        <div class="card admin-only">
           <div class="card-header">Team Status</div>
           <div id="team-summary"><div class="empty-state">Loading...</div></div>
         </div>
@@ -913,8 +924,8 @@
         <div class="filter-btn" data-filter="ANL" onclick="setFilter('ANL')">ANL</div>
         <div class="filter-btn" data-filter="ERC" onclick="setFilter('ERC')">ERC</div>
         <div class="filter-btn" data-filter="Personal" onclick="setFilter('Personal')">Personal</div>
-        <span style="color:var(--border);margin:0 4px">|</span>
-        <select class="member-filter-select" id="member-filter-select" onchange="setMemberFilter(this.value)">
+        <span class="admin-only" style="color:var(--border);margin:0 4px">|</span>
+        <select class="member-filter-select admin-only" id="member-filter-select" onchange="setMemberFilter(this.value)">
           <option value="">All Members</option>
         </select>
       </div>
@@ -1084,6 +1095,7 @@
   let activityFilter = 'all';
   let currentMemberFilter = ''; // member ID to filter by
   let memberFilterName = '';    // display name for the badge
+  let isAdmin = true;           // true when no ?member= param (admin sees all)
 
   // Parse ?member= URL parameter on load
   (function parseUrlParams() {
@@ -1091,6 +1103,9 @@
     const memberParam = params.get('member');
     if (memberParam) {
       memberFilterName = memberParam.trim();
+      isAdmin = false;
+      // Hide admin-only elements (Team tab, member filter dropdown)
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
     }
   })();
 
@@ -1207,6 +1222,45 @@
       }).join('');
     }
 
+    // Bot Agents — visible to everyone on Overview
+    const botEl = document.getElementById('bot-agents-overview');
+    const bots = allMembers.filter(m => m.is_bot);
+    if (bots.length === 0) {
+      botEl.innerHTML = '<div class="empty-state">No bot agents configured</div>';
+    } else {
+      botEl.innerHTML = bots.map(b => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span class="avatar-sm" style="background:${b.avatar_color}">${b.name[0]}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${b.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${b.role || ''}</div>
+        </div>
+        <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--green-dim);color:var(--green)">Active</span>
+      </div>`).join('');
+    }
+
+    // Delegated Tasks — admin only: tasks created/assigned by admin to others
+    if (isAdmin) {
+      const delegated = allTasks.filter(t => t.status !== 'done' && t.assignee_id);
+      const delegatedEl = document.getElementById('delegated-tasks');
+      document.getElementById('delegated-count').textContent = delegated.length;
+      if (delegated.length === 0) {
+        delegatedEl.innerHTML = '<div class="empty-state">No delegated tasks</div>';
+      } else {
+        delegatedEl.innerHTML = delegated.slice(0, 12).map(t => {
+          const member = allMembers.find(m => m.id === t.assignee_id);
+          const statusColors = { backlog: 'var(--muted)', todo: 'var(--text)', in_progress: 'var(--yellow)', review: 'var(--purple)', done: 'var(--green)' };
+          const statusLabels = { backlog: 'Backlog', todo: 'To Do', in_progress: 'Active', review: 'Review', done: 'Done' };
+          return `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px">
+            <span class="priority-dot priority-${t.priority}"></span>
+            <span style="flex:1">${t.title}</span>
+            ${member ? `<span class="avatar-sm" style="background:${member.avatar_color}" title="${member.name}">${member.name[0]}</span>` : ''}
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;color:${statusColors[t.status]}">${statusLabels[t.status] || t.status}</span>
+            ${formatDue(t.due_date)}
+          </div>`;
+        }).join('');
+      }
+    }
+
     // Recent activity
     const recentEl = document.getElementById('recent-activity');
     if (allActivity.length === 0) {
@@ -1221,17 +1275,19 @@
       `).join('');
     }
 
-    // Team summary
-    const teamEl = document.getElementById('team-summary');
-    const humans = allMembers.filter(m => !m.is_bot);
-    teamEl.innerHTML = humans.map(m => {
-      const memberTasks = allTasks.filter(t => t.assignee_id === m.id && t.status !== 'done');
-      return `<div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px">
-        <span class="avatar-sm" style="background:${m.avatar_color}">${m.name[0]}</span>
-        <span style="flex:1">${m.name}</span>
-        <span style="color:var(--muted)">${memberTasks.length} tasks</span>
-      </div>`;
-    }).join('');
+    // Team summary — admin only
+    if (isAdmin) {
+      const teamEl = document.getElementById('team-summary');
+      const humans = allMembers.filter(m => !m.is_bot);
+      teamEl.innerHTML = humans.map(m => {
+        const memberTasks = allTasks.filter(t => t.assignee_id === m.id && t.status !== 'done');
+        return `<div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px">
+          <span class="avatar-sm" style="background:${m.avatar_color}">${m.name[0]}</span>
+          <span style="flex:1">${m.name}</span>
+          <span style="color:var(--muted)">${memberTasks.length} tasks</span>
+        </div>`;
+      }).join('');
+    }
   }
 
   // ============================================================
