@@ -577,6 +577,34 @@
       gap: 12px;
     }
 
+    .form-row:has(> :nth-child(3)) {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    /* Autocomplete dropdowns */
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .ac-item {
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-item:hover { background: var(--card-hover); }
+    .ac-add { color: var(--accent); font-style: italic; }
+
     .modal-actions {
       display: flex;
       justify-content: flex-end;
@@ -1282,14 +1310,14 @@
       <table class="data-table" id="offers-table">
         <thead>
           <tr>
-            <th>Tenant</th>
             <th>Property</th>
             <th>Client</th>
             <th>Offer Price</th>
             <th>Cap Rate</th>
+            <th>DD / Close</th>
+            <th>Deposit</th>
             <th>Status</th>
-            <th>LOI</th>
-            <th>Date</th>
+            <th>Expires</th>
             <th></th>
           </tr>
         </thead>
@@ -1530,34 +1558,89 @@
 
 <!-- OFFER MODAL -->
 <div class="modal-overlay" id="offer-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:720px">
     <h3 id="offer-modal-title">New Offer</h3>
     <input type="hidden" id="offer-edit-id">
     <div class="form-row">
-      <div class="form-group">
-        <label>Tenant</label>
-        <input type="text" id="offer-tenant" placeholder="e.g. Dollar General">
+      <div class="form-group" style="position:relative">
+        <label>Subject Property</label>
+        <input type="text" id="offer-property-search" placeholder="Search or add property..." autocomplete="off" oninput="filterPropertyDropdown(this.value)" onfocus="showPropertyDropdown()">
+        <input type="hidden" id="offer-property-id">
+        <div id="property-dropdown" class="autocomplete-dropdown" style="display:none"></div>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label>Client Name</label>
-        <input type="text" id="offer-client-name" placeholder="Client">
+        <input type="text" id="offer-client-search" placeholder="Search or add client..." autocomplete="off" oninput="filterClientDropdown(this.value)" onfocus="showClientDropdown()">
+        <input type="hidden" id="offer-client-id">
+        <div id="client-dropdown" class="autocomplete-dropdown" style="display:none"></div>
       </div>
-    </div>
-    <div class="form-group">
-      <label>Property Address</label>
-      <input type="text" id="offer-address" placeholder="Full property address">
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>Offer Price</label>
-        <input type="number" id="offer-price" placeholder="0.00" step="0.01">
+        <input type="text" id="offer-price" placeholder="$0" oninput="formatCurrencyInput(this)" onblur="formatCurrencyBlur(this)">
       </div>
       <div class="form-group">
-        <label>Cap Rate %</label>
-        <input type="number" id="offer-cap" placeholder="6.5" step="0.01">
+        <label>Offer Cap Rate %</label>
+        <input type="number" id="offer-cap" placeholder="6.05" step="0.01">
       </div>
     </div>
     <div class="form-row">
+      <div class="form-group">
+        <label>DD Period (Days)</label>
+        <input type="number" id="offer-dd-days" placeholder="21" value="21">
+      </div>
+      <div class="form-group">
+        <label>Closing Days</label>
+        <input type="number" id="offer-closing-days" placeholder="15" value="15">
+      </div>
+      <div class="form-group">
+        <label>Initial Deposit</label>
+        <input type="text" id="offer-deposit" placeholder="$25,000" oninput="formatCurrencyInput(this)" onblur="formatCurrencyBlur(this)">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Closing Cost Resp</label>
+        <select id="offer-closing-cost">
+          <option value="per_local_custom">Per Local Custom</option>
+          <option value="seller_pays">Seller Pays</option>
+          <option value="buyer_pays">Buyer Pays</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Who Chooses Title Company</label>
+        <select id="offer-title-company">
+          <option value="seller_chooses">Seller Chooses</option>
+          <option value="buyer_chooses">Buyer Chooses</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Seller to Provide PSA Draft</label>
+        <select id="offer-psa-days">
+          <option value="1">In 1 Business Day</option>
+          <option value="2">In 2 Business Days</option>
+          <option value="3" selected>In 3 Business Days</option>
+          <option value="4">In 4 Business Days</option>
+          <option value="5">In 5 Business Days</option>
+          <option value="6">In 6 Business Days</option>
+          <option value="7">In 7 Business Days</option>
+        </select>
+      </div>
+      <div class="form-group" style="position:relative">
+        <label>Listing Brokerage Firm</label>
+        <input type="text" id="offer-broker-search" placeholder="Search or add broker..." autocomplete="off" oninput="filterBrokerDropdown(this.value)" onfocus="showBrokerDropdown()">
+        <input type="hidden" id="offer-broker-id">
+        <div id="broker-dropdown" class="autocomplete-dropdown" style="display:none"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Offer Expiration Date</label>
+        <input type="date" id="offer-expiration">
+      </div>
       <div class="form-group">
         <label>Status</label>
         <select id="offer-status">
@@ -1569,10 +1652,6 @@
           <option value="expired">Expired</option>
           <option value="withdrawn">Withdrawn</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label>Lease Term</label>
-        <input type="text" id="offer-lease" placeholder="e.g. 15 years">
       </div>
     </div>
     <div class="form-group">
@@ -2595,17 +2674,23 @@
       return;
     }
 
-    tbody.innerHTML = filtered.map(o => `<tr style="cursor:pointer" onclick="openEditOfferModal('${o.id}')">
-      <td style="font-weight:500">${o.tenant || '—'}</td>
-      <td style="font-size:12px">${o.property_address || '—'}</td>
+    tbody.innerHTML = filtered.map(o => {
+      const propLabel = o.tenant ? `${o.tenant}` + (o.property_address ? `<br><span style="font-size:11px;color:var(--muted)">${o.property_address}</span>` : '') : (o.property_address || '—');
+      const ddClose = (o.dd_period_days || o.closing_days) ? `${o.dd_period_days || '—'}d / ${o.closing_days || '—'}d` : '—';
+      const deposit = o.initial_deposit ? formatMoney(o.initial_deposit) : '—';
+      const expires = o.offer_expiration_date ? new Date(o.offer_expiration_date).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—';
+      return `<tr style="cursor:pointer" onclick="openEditOfferModal('${o.id}')">
+      <td style="font-weight:500">${propLabel}</td>
       <td>${o.client_name || '—'}</td>
       <td>${o.offer_price ? formatMoney(o.offer_price) : '—'}</td>
       <td>${o.cap_rate ? o.cap_rate + '%' : '—'}</td>
+      <td style="font-size:12px">${ddClose}</td>
+      <td style="font-size:12px">${deposit}</td>
       <td><span class="status-badge status-${o.status}">${o.status}</span></td>
-      <td>${o.loi_generated ? '<span style="color:var(--green)">Sent</span>' : '<span style="color:var(--muted)">—</span>'}</td>
-      <td style="font-size:12px;color:var(--muted)">${new Date(o.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</td>
+      <td style="font-size:12px;color:var(--muted)">${expires}</td>
       <td>${o.status === 'accepted' && !o.deal_id ? '<button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
   }
 
   // ============================================================
@@ -2815,13 +2900,22 @@
     document.getElementById('offer-modal-title').textContent = 'New Offer';
     document.getElementById('offer-save-btn').textContent = 'Create Offer';
     document.getElementById('offer-edit-id').value = '';
-    document.getElementById('offer-tenant').value = '';
-    document.getElementById('offer-client-name').value = '';
-    document.getElementById('offer-address').value = '';
+    document.getElementById('offer-property-search').value = '';
+    document.getElementById('offer-property-id').value = '';
+    document.getElementById('offer-client-search').value = '';
+    document.getElementById('offer-client-id').value = '';
     document.getElementById('offer-price').value = '';
     document.getElementById('offer-cap').value = '';
+    document.getElementById('offer-dd-days').value = '21';
+    document.getElementById('offer-closing-days').value = '15';
+    document.getElementById('offer-deposit').value = '';
+    document.getElementById('offer-closing-cost').value = 'per_local_custom';
+    document.getElementById('offer-title-company').value = 'seller_chooses';
+    document.getElementById('offer-psa-days').value = '3';
+    document.getElementById('offer-broker-search').value = '';
+    document.getElementById('offer-broker-id').value = '';
+    document.getElementById('offer-expiration').value = '';
     document.getElementById('offer-status').value = 'draft';
-    document.getElementById('offer-lease').value = '';
     document.getElementById('offer-notes').value = '';
     document.getElementById('offer-modal').classList.add('open');
   }
@@ -2832,29 +2926,149 @@
     document.getElementById('offer-modal-title').textContent = 'Edit Offer';
     document.getElementById('offer-save-btn').textContent = 'Save Changes';
     document.getElementById('offer-edit-id').value = offer.id;
-    document.getElementById('offer-tenant').value = offer.tenant || '';
-    document.getElementById('offer-client-name').value = offer.client_name || '';
-    document.getElementById('offer-address').value = offer.property_address || '';
-    document.getElementById('offer-price').value = offer.offer_price || '';
+    // Property search field — show tenant + address
+    const propLabel = [offer.tenant, offer.property_address].filter(Boolean).join(' – ');
+    document.getElementById('offer-property-search').value = propLabel;
+    document.getElementById('offer-property-id').value = offer.property_id || '';
+    // Client search field
+    document.getElementById('offer-client-search').value = offer.client_name || '';
+    document.getElementById('offer-client-id').value = offer.client_id || '';
+    // Price with formatting
+    document.getElementById('offer-price').value = offer.offer_price ? '$' + Number(offer.offer_price).toLocaleString('en-US') : '';
     document.getElementById('offer-cap').value = offer.cap_rate || '';
+    document.getElementById('offer-dd-days').value = offer.dd_period_days || 21;
+    document.getElementById('offer-closing-days').value = offer.closing_days || 15;
+    document.getElementById('offer-deposit').value = offer.initial_deposit ? '$' + Number(offer.initial_deposit).toLocaleString('en-US') : '';
+    document.getElementById('offer-closing-cost').value = offer.closing_cost_resp || 'per_local_custom';
+    document.getElementById('offer-title-company').value = offer.title_company_choice || 'seller_chooses';
+    document.getElementById('offer-psa-days').value = offer.psa_draft_days || 3;
+    // Broker search field
+    document.getElementById('offer-broker-search').value = offer.listing_broker_name || '';
+    document.getElementById('offer-broker-id').value = offer.listing_broker_id || '';
+    document.getElementById('offer-expiration').value = offer.offer_expiration_date || '';
     document.getElementById('offer-status').value = offer.status;
-    document.getElementById('offer-lease').value = offer.lease_term || '';
     document.getElementById('offer-notes').value = offer.notes || '';
     document.getElementById('offer-modal').classList.add('open');
   }
 
   function closeOfferModal() { document.getElementById('offer-modal').classList.remove('open'); }
 
+  function parseCurrencyValue(str) {
+    if (!str) return null;
+    return parseFloat(str.replace(/[$,\s]/g, '')) || null;
+  }
+
+  function formatCurrencyInput(el) {
+    let val = el.value.replace(/[^0-9.]/g, '');
+    if (val) {
+      const parts = val.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      el.value = '$' + parts.join('.');
+    }
+  }
+
+  function formatCurrencyBlur(el) {
+    const num = parseCurrencyValue(el.value);
+    if (num) el.value = '$' + Number(num).toLocaleString('en-US');
+  }
+
+  // ---- Autocomplete: Properties ----
+  function showPropertyDropdown() { filterPropertyDropdown(document.getElementById('offer-property-search').value); }
+  function filterPropertyDropdown(q) {
+    const dd = document.getElementById('property-dropdown');
+    const lq = (q || '').toLowerCase();
+    let items = allProperties.filter(p => {
+      const label = `${p.tenant || ''} ${p.address || ''} ${p.city || ''}`.toLowerCase();
+      return !lq || label.includes(lq);
+    }).slice(0, 8);
+    let html = items.map(p => `<div class="ac-item" onmousedown="selectProperty('${p.id}','${(p.tenant||'').replace(/'/g,"\\'")} – ${(p.address||'').replace(/'/g,"\\'")}, ${(p.city||'').replace(/'/g,"\\'")} ${(p.state||'').replace(/'/g,"\\'")}')">${p.tenant || 'Unknown'} – ${p.address || ''}, ${p.city || ''} ${p.state || ''}</div>`).join('');
+    if (lq && items.length === 0) html = `<div class="ac-item ac-add" onmousedown="selectProperty('','${lq}')">+ Add "${q}" as new property</div>`;
+    else if (lq) html += `<div class="ac-item ac-add" onmousedown="selectProperty('','${q.replace(/'/g,"\\'")}')">+ Add new property</div>`;
+    dd.innerHTML = html;
+    dd.style.display = html ? 'block' : 'none';
+  }
+  function selectProperty(id, label) {
+    document.getElementById('offer-property-search').value = label;
+    document.getElementById('offer-property-id').value = id;
+    document.getElementById('property-dropdown').style.display = 'none';
+  }
+
+  // ---- Autocomplete: Clients ----
+  function showClientDropdown() { filterClientDropdown(document.getElementById('offer-client-search').value); }
+  function filterClientDropdown(q) {
+    const dd = document.getElementById('client-dropdown');
+    const lq = (q || '').toLowerCase();
+    let items = allContacts.filter(c => c.contact_type === 'client' && (!lq || (c.name||'').toLowerCase().includes(lq))).slice(0, 8);
+    let html = items.map(c => `<div class="ac-item" onmousedown="selectClient('${c.id}','${(c.name||'').replace(/'/g,"\\'")}')">${c.name}${c.company ? ' – ' + c.company : ''}</div>`).join('');
+    if (lq && items.length === 0) html = `<div class="ac-item ac-add" onmousedown="selectClient('','${q.replace(/'/g,"\\'")}')">+ Add "${q}" as new client</div>`;
+    else if (lq) html += `<div class="ac-item ac-add" onmousedown="selectClient('','${q.replace(/'/g,"\\'")}')">+ Add new client</div>`;
+    dd.innerHTML = html;
+    dd.style.display = html ? 'block' : 'none';
+  }
+  function selectClient(id, name) {
+    document.getElementById('offer-client-search').value = name;
+    document.getElementById('offer-client-id').value = id;
+    document.getElementById('client-dropdown').style.display = 'none';
+  }
+
+  // ---- Autocomplete: Brokers ----
+  function showBrokerDropdown() { filterBrokerDropdown(document.getElementById('offer-broker-search').value); }
+  function filterBrokerDropdown(q) {
+    const dd = document.getElementById('broker-dropdown');
+    const lq = (q || '').toLowerCase();
+    let items = allContacts.filter(c => c.contact_type === 'broker' && (!lq || (c.name||'').toLowerCase().includes(lq) || (c.company||'').toLowerCase().includes(lq))).slice(0, 8);
+    let html = items.map(c => `<div class="ac-item" onmousedown="selectBroker('${c.id}','${(c.company || c.name||'').replace(/'/g,"\\'")}')">${c.company || c.name}${c.company && c.name ? ' (' + c.name + ')' : ''}</div>`).join('');
+    if (lq && items.length === 0) html = `<div class="ac-item ac-add" onmousedown="selectBroker('','${q.replace(/'/g,"\\'")}')">+ Add "${q}" as new broker</div>`;
+    else if (lq) html += `<div class="ac-item ac-add" onmousedown="selectBroker('','${q.replace(/'/g,"\\'")}')">+ Add new broker</div>`;
+    dd.innerHTML = html;
+    dd.style.display = html ? 'block' : 'none';
+  }
+  function selectBroker(id, name) {
+    document.getElementById('offer-broker-search').value = name;
+    document.getElementById('offer-broker-id').value = id;
+    document.getElementById('broker-dropdown').style.display = 'none';
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#offer-property-search') && !e.target.closest('#property-dropdown')) document.getElementById('property-dropdown').style.display = 'none';
+    if (!e.target.closest('#offer-client-search') && !e.target.closest('#client-dropdown')) document.getElementById('client-dropdown').style.display = 'none';
+    if (!e.target.closest('#offer-broker-search') && !e.target.closest('#broker-dropdown')) document.getElementById('broker-dropdown').style.display = 'none';
+  });
+
   async function saveOffer() {
     const editId = document.getElementById('offer-edit-id').value;
+    const propertySearch = document.getElementById('offer-property-search').value.trim();
+    const clientSearch = document.getElementById('offer-client-search').value.trim();
+    const brokerSearch = document.getElementById('offer-broker-search').value.trim();
+
+    // Parse property — extract tenant from "Tenant – Address" format
+    let tenant = propertySearch;
+    let propertyAddress = '';
+    if (propertySearch.includes(' – ')) {
+      const parts = propertySearch.split(' – ');
+      tenant = parts[0].trim();
+      propertyAddress = parts.slice(1).join(' – ').trim();
+    }
+
     const data = {
-      tenant: document.getElementById('offer-tenant').value.trim() || null,
-      client_name: document.getElementById('offer-client-name').value.trim() || null,
-      property_address: document.getElementById('offer-address').value.trim() || null,
-      offer_price: parseFloat(document.getElementById('offer-price').value) || null,
+      tenant: tenant || null,
+      property_address: propertyAddress || null,
+      property_id: document.getElementById('offer-property-id').value || null,
+      client_name: clientSearch || null,
+      client_id: document.getElementById('offer-client-id').value || null,
+      offer_price: parseCurrencyValue(document.getElementById('offer-price').value),
       cap_rate: parseFloat(document.getElementById('offer-cap').value) || null,
+      dd_period_days: parseInt(document.getElementById('offer-dd-days').value) || 21,
+      closing_days: parseInt(document.getElementById('offer-closing-days').value) || 15,
+      initial_deposit: parseCurrencyValue(document.getElementById('offer-deposit').value),
+      closing_cost_resp: document.getElementById('offer-closing-cost').value,
+      title_company_choice: document.getElementById('offer-title-company').value,
+      psa_draft_days: parseInt(document.getElementById('offer-psa-days').value) || 3,
+      listing_broker_name: brokerSearch || null,
+      listing_broker_id: document.getElementById('offer-broker-id').value || null,
+      offer_expiration_date: document.getElementById('offer-expiration').value || null,
       status: document.getElementById('offer-status').value,
-      lease_term: document.getElementById('offer-lease').value.trim() || null,
       notes: document.getElementById('offer-notes').value.trim() || null,
       updated_at: new Date().toISOString()
     };
