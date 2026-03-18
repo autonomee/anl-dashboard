@@ -1005,8 +1005,13 @@
     }
     .status-draft { background: var(--border); color: var(--text-secondary); }
     .status-submitted { background: var(--accent); color: white; opacity: 0.8; }
+    .status-buyer_rep_offer { background: var(--accent); color: white; opacity: 0.9; }
+    .status-listing_offer { background: var(--purple-dim); color: var(--purple); }
     .status-countered { background: var(--yellow-dim); color: var(--yellow); }
+    .status-withdrawn { background: var(--border); color: var(--muted); }
+    .status-best_final { background: var(--orange-dim); color: var(--orange); }
     .status-accepted { background: var(--green-dim); color: var(--green); }
+    .status-not_accepted { background: var(--red-dim); color: var(--red); }
     .status-declined { background: var(--red-dim); color: var(--red); }
     .status-expired { background: var(--border); color: var(--muted); }
     .status-available { background: var(--green-dim); color: var(--green); }
@@ -1299,9 +1304,9 @@
     <div class="toolbar">
       <div class="toolbar-left">
         <div class="filter-btn active" data-ofilter="all" onclick="setOfferFilter('all', this)">All</div>
-        <div class="filter-btn" data-ofilter="draft" onclick="setOfferFilter('draft', this)">Draft</div>
-        <div class="filter-btn" data-ofilter="submitted" onclick="setOfferFilter('submitted', this)">Submitted</div>
+        <div class="filter-btn" data-ofilter="buyer_rep_offer" onclick="setOfferFilter('buyer_rep_offer', this)">Awaiting Seller</div>
         <div class="filter-btn" data-ofilter="countered" onclick="setOfferFilter('countered', this)">Countered</div>
+        <div class="filter-btn" data-ofilter="best_final" onclick="setOfferFilter('best_final', this)">Best &amp; Final</div>
         <div class="filter-btn" data-ofilter="accepted" onclick="setOfferFilter('accepted', this)">Accepted</div>
       </div>
       <button class="btn btn-primary" onclick="openNewOfferModal()">+ New Offer</button>
@@ -1644,13 +1649,13 @@
       <div class="form-group">
         <label>Status</label>
         <select id="offer-status">
-          <option value="draft">Draft</option>
-          <option value="submitted">Submitted</option>
-          <option value="countered">Countered</option>
+          <option value="buyer_rep_offer">Buyer Rep Offer, Awaiting Seller</option>
+          <option value="listing_offer">Listing Offer Rec'd, Awaiting Seller</option>
+          <option value="countered">Countered by Seller, Awaiting Buyer</option>
+          <option value="withdrawn">Offer Withdrawn by Buyer</option>
+          <option value="best_final">Best &amp; Final Request</option>
           <option value="accepted">Accepted</option>
-          <option value="declined">Declined</option>
-          <option value="expired">Expired</option>
-          <option value="withdrawn">Withdrawn</option>
+          <option value="not_accepted">Offer Not Accepted</option>
         </select>
       </div>
     </div>
@@ -2674,11 +2679,22 @@
       return;
     }
 
+    const STATUS_LABELS = {
+      buyer_rep_offer: 'Buyer Rep, Awaiting Seller',
+      listing_offer: 'Listing Offer, Awaiting Seller',
+      countered: 'Countered, Awaiting Buyer',
+      withdrawn: 'Withdrawn by Buyer',
+      best_final: 'Best & Final',
+      accepted: 'Accepted',
+      not_accepted: 'Not Accepted',
+      draft: 'Draft', submitted: 'Submitted', declined: 'Declined', expired: 'Expired'
+    };
     tbody.innerHTML = filtered.map(o => {
       const propLabel = o.tenant ? `${o.tenant}` + (o.property_address ? `<br><span style="font-size:11px;color:var(--muted)">${o.property_address}</span>` : '') : (o.property_address || '—');
       const ddClose = (o.dd_period_days || o.closing_days) ? `${o.dd_period_days || '—'}d / ${o.closing_days || '—'}d` : '—';
       const deposit = o.initial_deposit ? formatMoney(o.initial_deposit) : '—';
       const expires = o.offer_expiration_date ? new Date(o.offer_expiration_date).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—';
+      const statusLabel = STATUS_LABELS[o.status] || o.status;
       return `<tr style="cursor:pointer" onclick="openEditOfferModal('${o.id}')">
       <td style="font-weight:500">${propLabel}</td>
       <td>${o.client_name || '—'}</td>
@@ -2686,7 +2702,7 @@
       <td>${o.cap_rate ? o.cap_rate + '%' : '—'}</td>
       <td style="font-size:12px">${ddClose}</td>
       <td style="font-size:12px">${deposit}</td>
-      <td><span class="status-badge status-${o.status}">${o.status}</span></td>
+      <td><span class="status-badge status-${o.status}">${statusLabel}</span></td>
       <td style="font-size:12px;color:var(--muted)">${expires}</td>
       <td>${o.status === 'accepted' && !o.deal_id ? '<button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
     </tr>`;
