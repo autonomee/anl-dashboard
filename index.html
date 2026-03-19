@@ -3586,9 +3586,7 @@
     if (!window.docx) { alert('DOCX library loading — try again in a moment.'); return; }
 
     try {
-    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, TabStopType, TabStopPosition, HeadingLevel } = window.docx;
-
-    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, TableBorders } = window.docx;
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, HeadingLevel } = window.docx;
 
     const sz = 18; // 9pt body text
     const bold = (text, size) => new TextRun({ text, bold: true, size: size || sz, font: 'Calibri' });
