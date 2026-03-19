@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mission Control — GCT Commercial</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
   <style>
     :root {
       --bg: #0a0b0f;
@@ -1589,6 +1590,10 @@
         <label>Offer Cap Rate %</label>
         <input type="number" id="offer-cap" placeholder="6.05" step="0.01">
       </div>
+      <div class="form-group">
+        <label>NOI</label>
+        <input type="text" id="offer-noi" placeholder="$101,988" oninput="formatCurrencyInput(this)" onblur="formatCurrencyBlur(this)">
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1665,6 +1670,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeOfferModal()">Cancel</button>
+      <button class="btn btn-primary" id="offer-loi-btn" onclick="generateLOIFromModal()" style="display:none;background:var(--purple);border-color:var(--purple)">Generate LOI</button>
       <button class="btn btn-primary" id="offer-save-btn" onclick="saveOffer()">Create Offer</button>
     </div>
   </div>
@@ -2704,7 +2710,7 @@
       <td style="font-size:12px">${deposit}</td>
       <td><span class="status-badge status-${o.status}">${statusLabel}</span></td>
       <td style="font-size:12px;color:var(--muted)">${expires}</td>
-      <td>${o.status === 'accepted' && !o.deal_id ? '<button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();generateLOI('${o.id}')" style="background:var(--purple);color:white;border-color:var(--purple)">LOI</button>${o.status === 'accepted' && !o.deal_id ? ' <button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
     </tr>`;
     }).join('');
   }
@@ -2931,8 +2937,10 @@
     document.getElementById('offer-broker-search').value = '';
     document.getElementById('offer-broker-id').value = '';
     document.getElementById('offer-expiration').value = '';
+    document.getElementById('offer-noi').value = '';
     document.getElementById('offer-status').value = 'draft';
     document.getElementById('offer-notes').value = '';
+    document.getElementById('offer-loi-btn').style.display = 'none';
     document.getElementById('offer-modal').classList.add('open');
   }
 
@@ -2962,8 +2970,10 @@
     document.getElementById('offer-broker-search').value = offer.listing_broker_name || '';
     document.getElementById('offer-broker-id').value = offer.listing_broker_id || '';
     document.getElementById('offer-expiration').value = offer.offer_expiration_date || '';
+    document.getElementById('offer-noi').value = offer.noi ? '$' + Number(offer.noi).toLocaleString('en-US') : '';
     document.getElementById('offer-status').value = offer.status;
     document.getElementById('offer-notes').value = offer.notes || '';
+    document.getElementById('offer-loi-btn').style.display = 'inline-flex';
     document.getElementById('offer-modal').classList.add('open');
   }
 
@@ -3075,6 +3085,7 @@
       client_id: document.getElementById('offer-client-id').value || null,
       offer_price: parseCurrencyValue(document.getElementById('offer-price').value),
       cap_rate: parseFloat(document.getElementById('offer-cap').value) || null,
+      noi: parseCurrencyValue(document.getElementById('offer-noi').value),
       dd_period_days: parseInt(document.getElementById('offer-dd-days').value) || 21,
       closing_days: parseInt(document.getElementById('offer-closing-days').value) || 15,
       initial_deposit: parseCurrencyValue(document.getElementById('offer-deposit').value),
@@ -3355,6 +3366,207 @@
     switchBusiness(currentBusiness);
     document.getElementById('refresh-status').textContent =
       `Updated ${new Date().toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  // ============================================================
+  // LOI PDF GENERATION
+  // ============================================================
+  function generateLOIFromModal() {
+    const editId = document.getElementById('offer-edit-id').value;
+    if (editId) {
+      generateLOI(editId);
+    } else {
+      alert('Save the offer first, then generate the LOI.');
+    }
+  }
+
+  function generateLOI(offerId) {
+    const offer = allOffers.find(o => o.id === offerId);
+    if (!offer) { alert('Offer not found'); return; }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const W = doc.internal.pageSize.getWidth();
+    const margin = 60;
+    const maxW = W - margin * 2;
+    let y = 50;
+
+    // --- COLORS ---
+    const navy = [0, 32, 91];
+    const darkText = [30, 30, 30];
+    const gold = [191, 155, 48];
+
+    // --- HEADER: Company Name ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...navy);
+    doc.text('AMERICAN NET LEASE', W / 2, y, { align: 'center' });
+    y += 20;
+
+    // Gold accent line
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(2);
+    doc.line(margin + 60, y, W - margin - 60, y);
+    y += 18;
+
+    // Contact info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Dwaine Clarke  |  dclarke@americannetlease.com  |  P: 239-236-2626  |  eFax: 239-236-2959', W / 2, y, { align: 'center' });
+    y += 12;
+    doc.text('9160 Forum Corporate Pkwy, Suite 350, Fort Myers, FL 33905', W / 2, y, { align: 'center' });
+    y += 25;
+
+    // Navy separator
+    doc.setDrawColor(...navy);
+    doc.setLineWidth(1.5);
+    doc.line(margin, y, W - margin, y);
+    y += 28;
+
+    // --- LETTER OF INTENT TITLE ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(...navy);
+    doc.text('LETTER OF INTENT', W / 2, y, { align: 'center' });
+    y += 30;
+
+    // --- DATE ---
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10.5);
+    doc.setTextColor(...darkText);
+    doc.text(dateStr, margin, y);
+    y += 22;
+
+    // --- LISTING BROKER LINE ---
+    if (offer.listing_broker_name) {
+      doc.text(`Listing Broker: ${offer.listing_broker_name}`, margin, y);
+      y += 18;
+    }
+
+    // --- RE LINE ---
+    const propertyDesc = [offer.tenant, offer.property_address].filter(Boolean).join(' — ');
+    doc.setFont('helvetica', 'bold');
+    doc.text('RE: ', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(propertyDesc || 'Subject Property', margin + 22, y);
+    y += 28;
+
+    // --- INTRO PARAGRAPH ---
+    const clientName = offer.client_name || '____________________';
+    const intro = `Dear Sir/Madam,\n\nOn behalf of our client, ${clientName} and/or assigns ("Purchaser"), this non-binding Letter of Intent outlines the basic terms under which the Purchaser would be willing to acquire the above-referenced property ("Property").`;
+    doc.setFontSize(10.5);
+    const introLines = doc.splitTextToSize(intro, maxW);
+    doc.text(introLines, margin, y);
+    y += introLines.length * 14 + 14;
+
+    // --- TERMS TABLE ---
+    const closingCostMap = { per_local_custom: 'Per Local Custom', seller_pays: 'Seller Pays', buyer_pays: 'Buyer Pays' };
+    const titleMap = { seller_chooses: 'Seller Chooses', buyer_chooses: 'Buyer Chooses' };
+
+    const terms = [
+      ['Purchase Price:', offer.offer_price ? '$' + Number(offer.offer_price).toLocaleString('en-US', { minimumFractionDigits: 0 }) : 'TBD'],
+      ['Cap Rate:', offer.cap_rate ? offer.cap_rate + '%' : 'TBD'],
+      ['NOI:', offer.noi ? '$' + Number(offer.noi).toLocaleString('en-US', { minimumFractionDigits: 0 }) : 'TBD'],
+      ['Due Diligence Period:', (offer.dd_period_days || 21) + ' days from execution of PSA'],
+      ['Earnest Money Deposit:', offer.initial_deposit ? '$' + Number(offer.initial_deposit).toLocaleString('en-US', { minimumFractionDigits: 0 }) : 'TBD'],
+      ['Closing:', 'Within ' + (offer.closing_days || 15) + ' days after expiration of Due Diligence Period'],
+      ['Closing Costs:', closingCostMap[offer.closing_cost_resp] || 'Per Local Custom'],
+      ['Title Company:', (titleMap[offer.title_company_choice] || 'Seller Chooses')],
+      ['PSA Draft:', 'Seller to provide within ' + (offer.psa_draft_days || 3) + ' business days of LOI acceptance'],
+    ];
+
+    if (offer.offer_expiration_date) {
+      const expDate = new Date(offer.offer_expiration_date + 'T00:00:00');
+      terms.push(['Offer Expiration:', expDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })]);
+    }
+
+    const labelW = 150;
+    const valueX = margin + labelW + 10;
+    const valueW = maxW - labelW - 10;
+
+    terms.forEach(([label, value]) => {
+      // Check if we need a new page
+      if (y > 700) {
+        doc.addPage();
+        y = 50;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(...navy);
+      doc.text(label, margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...darkText);
+      const valLines = doc.splitTextToSize(value, valueW);
+      doc.text(valLines, valueX, y);
+      y += Math.max(valLines.length * 14, 18) + 4;
+    });
+
+    y += 14;
+
+    // --- CLOSING PARAGRAPHS ---
+    if (y > 650) { doc.addPage(); y = 50; }
+    const closing1 = 'This Letter of Intent is for discussion purposes only and does not create a binding agreement between the parties. A binding agreement will only be created upon the mutual execution of a Purchase and Sale Agreement.';
+    const c1Lines = doc.splitTextToSize(closing1, maxW);
+    doc.setFontSize(10.5);
+    doc.setTextColor(...darkText);
+    doc.text(c1Lines, margin, y);
+    y += c1Lines.length * 14 + 14;
+
+    const closing2 = 'If the general terms outlined above are acceptable, please execute below and return a copy of this letter to the undersigned.';
+    const c2Lines = doc.splitTextToSize(closing2, maxW);
+    doc.text(c2Lines, margin, y);
+    y += c2Lines.length * 14 + 28;
+
+    // --- SIGNATURE BLOCK ---
+    if (y > 650) { doc.addPage(); y = 50; }
+    doc.setFont('helvetica', 'normal');
+    doc.text('Respectfully submitted,', margin, y);
+    y += 40;
+
+    doc.setDrawColor(150, 150, 150);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, margin + 200, y);
+    y += 14;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Quinn Mitchell', margin, y);
+    y += 14;
+    doc.setFont('helvetica', 'normal');
+    doc.text('American Net Lease', margin, y);
+    y += 14;
+    doc.text(`On behalf of: ${clientName}`, margin, y);
+    y += 40;
+
+    // --- ACCEPTANCE BLOCK ---
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...navy);
+    doc.text('ACCEPTED AND AGREED:', margin, y);
+    y += 28;
+    doc.setTextColor(...darkText);
+    doc.setFont('helvetica', 'normal');
+
+    // Seller signature
+    doc.line(margin, y, margin + 220, y);
+    y += 14;
+    doc.text('Seller / Authorized Representative', margin, y);
+    y += 28;
+
+    doc.text('Date: ______________________', margin, y);
+
+    // --- FOOTER ---
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 150);
+      doc.text('American Net Lease  |  Confidential', W / 2, 760, { align: 'center' });
+    }
+
+    // --- SAVE ---
+    const filename = `LOI_${(offer.tenant || 'Property').replace(/[^a-zA-Z0-9]/g, '_')}_${(offer.client_name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_${today.toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
   }
 
   // Initial load
