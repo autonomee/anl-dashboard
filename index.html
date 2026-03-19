@@ -3448,8 +3448,8 @@
     const navy = [0, 32, 91], dark = [30, 30, 30], gold = [191, 155, 48], gray = [100, 100, 100];
 
     function checkPage(need) { if (y + need > 720) { doc.addPage(); y = 50; } }
-    function heading(text) { doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...navy); }
-    function body() { doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...dark); }
+    function heading(text) { doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(...navy); }
+    function body() { doc.setFont('times','roman'); doc.setFontSize(10); doc.setTextColor(...dark); }
     function writeSection(label, text) {
       checkPage(80);
       heading(); doc.text(label, m, y); y += 16;
@@ -3463,9 +3463,9 @@
     const rX = W - m; // right edge
     const hStart = y;
     // Left column
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...dark);
+    doc.setFont('times','bold'); doc.setFontSize(11); doc.setTextColor(...dark);
     doc.text('Dwaine Clarke', m, y); y += 14;
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+    doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(...navy);
     doc.text('American Net Lease', m, y); y += 12;
     body(); doc.setFontSize(9);
     doc.text('Broker / Owner', m, y); y += 11;
@@ -3484,7 +3484,7 @@
     doc.line(m, y, W - m, y); y += 22;
 
     // --- Letter of Intent ---
-    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...navy);
+    doc.setFont('times','bold'); doc.setFontSize(16); doc.setTextColor(...navy);
     doc.text('Letter of Intent', W / 2, y, { align: 'center' }); y += 30;
 
     // --- PROPERTY ---
@@ -3549,7 +3549,7 @@
 
     // --- SIGNATURE ---
     checkPage(120);
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+    doc.setFont('times','bold'); doc.setFontSize(10); doc.setTextColor(...navy);
     doc.text('THE GENERAL TERMS OUTLINED ABOVE ARE HEREBY AGREED TO BY:', m, y); y += 25;
     body(); doc.setFontSize(10);
 
@@ -3589,9 +3589,9 @@
     const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, HeadingLevel } = window.docx;
 
     const sz = 18; // 9pt body text
-    const bold = (text, size) => new TextRun({ text, bold: true, size: size || sz, font: 'Calibri' });
-    const normal = (text, size) => new TextRun({ text, size: size || sz, font: 'Calibri' });
-    const link = (text, size) => new TextRun({ text, size: size || sz, font: 'Calibri', color: '0563C1' });
+    const bold = (text, size) => new TextRun({ text, bold: true, size: size || sz, font: 'Times New Roman' });
+    const normal = (text, size) => new TextRun({ text, size: size || sz, font: 'Times New Roman' });
+    const link = (text, size) => new TextRun({ text, size: size || sz, font: 'Times New Roman', color: '0563C1' });
     const hp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 0, line: 260 }, ...opts });
     const sp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 160, line: 260 }, ...opts });
     const noBorders = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
