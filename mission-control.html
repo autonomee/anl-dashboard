@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mission Control — GCT Commercial</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
   <script>
     // Fallback: if CDN fails, load from unpkg
     window.addEventListener('DOMContentLoaded', function() {
@@ -1649,8 +1650,15 @@
           <option value="7">In 7 Business Days</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Good Faith Effort (PSA Execution)</label>
+        <select id="offer-good-faith-days">
+          <option value="7" selected>7 Business Days</option>
+          <option value="14">14 Business Days</option>
+        </select>
+      </div>
       <div class="form-group" style="position:relative">
-        <label>Listing Brokerage Firm</label>
+        <label>Seller Brokerage Firm</label>
         <input type="text" id="offer-broker-search" placeholder="Search or add broker..." autocomplete="off" oninput="filterBrokerDropdown(this.value)" onfocus="showBrokerDropdown()">
         <input type="hidden" id="offer-broker-id">
         <div id="broker-dropdown" class="autocomplete-dropdown" style="display:none"></div>
@@ -1680,7 +1688,8 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeOfferModal()">Cancel</button>
-      <button class="btn btn-primary" id="offer-loi-btn" onclick="generateLOIFromModal()" style="display:none;background:var(--purple);border-color:var(--purple)">Generate LOI</button>
+      <button class="btn btn-primary" id="offer-loi-btn" onclick="generateLOIFromModal('pdf')" style="display:none;background:var(--purple);border-color:var(--purple)">Generate PDF</button>
+      <button class="btn btn-primary" id="offer-docx-btn" onclick="generateLOIFromModal('docx')" style="display:none;background:var(--cyan);border-color:var(--cyan)">Generate DOCX</button>
       <button class="btn btn-primary" id="offer-save-btn" onclick="saveOffer()">Create Offer</button>
     </div>
   </div>
@@ -2720,7 +2729,7 @@
       <td style="font-size:12px">${deposit}</td>
       <td><span class="status-badge status-${o.status}">${statusLabel}</span></td>
       <td style="font-size:12px;color:var(--muted)">${expires}</td>
-      <td><button class="btn-sm" onclick="event.stopPropagation();generateLOI('${o.id}')" style="background:var(--purple);color:white;border-color:var(--purple)">LOI</button>${o.status === 'accepted' && !o.deal_id ? ' <button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();generateLOI('${o.id}')" style="background:var(--purple);color:white;border-color:var(--purple)" title="Download PDF">PDF</button> <button class="btn-sm" onclick="event.stopPropagation();generateLOIDOCX('${o.id}')" style="background:var(--cyan);color:white;border-color:var(--cyan)" title="Download editable DOCX">DOCX</button>${o.status === 'accepted' && !o.deal_id ? ' <button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
     </tr>`;
     }).join('');
   }
@@ -2944,6 +2953,7 @@
     document.getElementById('offer-closing-cost').value = 'per_local_custom';
     document.getElementById('offer-title-company').value = 'seller_chooses';
     document.getElementById('offer-psa-days').value = '3';
+    document.getElementById('offer-good-faith-days').value = '7';
     document.getElementById('offer-broker-search').value = '';
     document.getElementById('offer-broker-id').value = '';
     document.getElementById('offer-expiration').value = '';
@@ -2951,6 +2961,7 @@
     document.getElementById('offer-status').value = 'draft';
     document.getElementById('offer-notes').value = '';
     document.getElementById('offer-loi-btn').style.display = 'none';
+    document.getElementById('offer-docx-btn').style.display = 'none';
     document.getElementById('offer-modal').classList.add('open');
   }
 
@@ -2976,6 +2987,7 @@
     document.getElementById('offer-closing-cost').value = offer.closing_cost_resp || 'per_local_custom';
     document.getElementById('offer-title-company').value = offer.title_company_choice || 'seller_chooses';
     document.getElementById('offer-psa-days').value = offer.psa_draft_days || 3;
+    document.getElementById('offer-good-faith-days').value = offer.good_faith_days || 7;
     // Broker search field
     document.getElementById('offer-broker-search').value = offer.listing_broker_name || '';
     document.getElementById('offer-broker-id').value = offer.listing_broker_id || '';
@@ -2984,6 +2996,7 @@
     document.getElementById('offer-status').value = offer.status;
     document.getElementById('offer-notes').value = offer.notes || '';
     document.getElementById('offer-loi-btn').style.display = 'inline-flex';
+    document.getElementById('offer-docx-btn').style.display = 'inline-flex';
     document.getElementById('offer-modal').classList.add('open');
   }
 
@@ -3102,6 +3115,7 @@
       closing_cost_resp: document.getElementById('offer-closing-cost').value,
       title_company_choice: document.getElementById('offer-title-company').value,
       psa_draft_days: parseInt(document.getElementById('offer-psa-days').value) || 3,
+      good_faith_days: parseInt(document.getElementById('offer-good-faith-days').value) || 7,
       listing_broker_name: brokerSearch || null,
       listing_broker_id: document.getElementById('offer-broker-id').value || null,
       offer_expiration_date: document.getElementById('offer-expiration').value || null,
@@ -3379,218 +3393,278 @@
   }
 
   // ============================================================
-  // LOI PDF GENERATION
+  // LOI GENERATION (PDF + DOCX)
   // ============================================================
-  function generateLOIFromModal() {
+  function generateLOIFromModal(format) {
     const editId = document.getElementById('offer-edit-id').value;
-    if (editId) {
-      generateLOI(editId);
-    } else {
-      alert('Save the offer first, then generate the LOI.');
-    }
+    if (!editId) { alert('Save the offer first, then generate the LOI.'); return; }
+    if (format === 'docx') generateLOIDOCX(editId);
+    else generateLOI(editId);
   }
 
-  function generateLOI(offerId) {
+  // Helper: get LOI data from offer
+  function getLOIData(offerId) {
     const offer = allOffers.find(o => o.id === offerId);
-    if (!offer) { alert('Offer not found. Save the offer first, then generate LOI.'); return; }
+    if (!offer) { alert('Offer not found. Save the offer first.'); return null; }
+    const closingCostMap = { per_local_custom: 'Per Local Custom', seller_pays: 'Seller Pays', buyer_pays: 'Buyer Pays' };
+    const titleMap = { seller_chooses: 'Seller Chooses', buyer_chooses: 'Buyer Chooses' };
+    const fmtMoney = (v) => v ? '$' + Number(v).toLocaleString('en-US') : 'TBD';
+    const propertyLine = [offer.tenant, offer.property_address].filter(Boolean).join(' - ');
+    const expDate = offer.offer_expiration_date ? new Date(offer.offer_expiration_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'TBD';
+    return {
+      offer,
+      propertyLine: propertyLine || 'TBD',
+      clientName: offer.client_name || 'TBD',
+      price: fmtMoney(offer.offer_price),
+      capRate: offer.cap_rate ? offer.cap_rate + '%' : 'TBD',
+      noi: fmtMoney(offer.noi),
+      ddDays: offer.dd_period_days || 21,
+      deposit: fmtMoney(offer.initial_deposit),
+      closingDays: offer.closing_days || 15,
+      closingCost: closingCostMap[offer.closing_cost_resp] || 'Per Local Custom',
+      psaDays: offer.psa_draft_days || 3,
+      goodFaithDays: offer.good_faith_days || 7,
+      titleCompany: titleMap[offer.title_company_choice] || 'Seller Chooses',
+      sellerBroker: offer.listing_broker_name || 'TBD',
+      expDate,
+      filename: `LOI_${(offer.tenant || 'Property').replace(/[^a-zA-Z0-9]/g, '_')}_${(offer.client_name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`
+    };
+  }
 
-    if (!window.jspdf) {
-      alert('PDF library is loading. Please wait a moment and try again.');
-      // Try loading it now
-      var s = document.createElement('script');
-      s.src = 'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js';
-      document.head.appendChild(s);
-      return;
-    }
+  // ============================================================
+  // GENERATE LOI — PDF (matches ANL DOCX template exactly)
+  // ============================================================
+  function generateLOI(offerId) {
+    const d = getLOIData(offerId);
+    if (!d) return;
+    if (!window.jspdf) { alert('PDF library loading — try again in a moment.'); return; }
 
     try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'letter' });
     const W = doc.internal.pageSize.getWidth();
-    const margin = 60;
-    const maxW = W - margin * 2;
+    const m = 60, maxW = W - m * 2;
     let y = 50;
+    const navy = [0, 32, 91], dark = [30, 30, 30], gold = [191, 155, 48], gray = [100, 100, 100];
 
-    // --- COLORS ---
-    const navy = [0, 32, 91];
-    const darkText = [30, 30, 30];
-    const gold = [191, 155, 48];
-
-    // --- HEADER: Company Name ---
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.setTextColor(...navy);
-    doc.text('AMERICAN NET LEASE', W / 2, y, { align: 'center' });
-    y += 20;
-
-    // Gold accent line
-    doc.setDrawColor(...gold);
-    doc.setLineWidth(2);
-    doc.line(margin + 60, y, W - margin - 60, y);
-    y += 18;
-
-    // Contact info
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Dwaine Clarke  |  dclarke@americannetlease.com  |  P: 239-236-2626  |  eFax: 239-236-2959', W / 2, y, { align: 'center' });
-    y += 12;
-    doc.text('9160 Forum Corporate Pkwy, Suite 350, Fort Myers, FL 33905', W / 2, y, { align: 'center' });
-    y += 25;
-
-    // Navy separator
-    doc.setDrawColor(...navy);
-    doc.setLineWidth(1.5);
-    doc.line(margin, y, W - margin, y);
-    y += 28;
-
-    // --- LETTER OF INTENT TITLE ---
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(...navy);
-    doc.text('LETTER OF INTENT', W / 2, y, { align: 'center' });
-    y += 30;
-
-    // --- DATE ---
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10.5);
-    doc.setTextColor(...darkText);
-    doc.text(dateStr, margin, y);
-    y += 22;
-
-    // --- LISTING BROKER LINE ---
-    if (offer.listing_broker_name) {
-      doc.text(`Listing Broker: ${offer.listing_broker_name}`, margin, y);
-      y += 18;
+    function checkPage(need) { if (y + need > 720) { doc.addPage(); y = 50; } }
+    function heading(text) { doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...navy); }
+    function body() { doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...dark); }
+    function writeSection(label, text) {
+      checkPage(80);
+      heading(); doc.text(label, m, y); y += 16;
+      body();
+      const lines = doc.splitTextToSize(text, maxW);
+      doc.text(lines, m, y);
+      y += lines.length * 13 + 12;
     }
 
-    // --- RE LINE ---
-    const propertyDesc = [offer.tenant, offer.property_address].filter(Boolean).join(' — ');
-    doc.setFont('helvetica', 'bold');
-    doc.text('RE: ', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(propertyDesc || 'Subject Property', margin + 22, y);
-    y += 28;
+    // --- HEADER ---
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...dark);
+    doc.text('Dwaine Clarke', m, y); y += 14;
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...navy);
+    doc.text('American Net Lease', m, y); y += 14;
+    body(); doc.setFontSize(10);
+    doc.text('Broker / Owner', m, y); y += 13;
+    doc.text('dclarke@americannetlease.com', m, y); y += 13;
+    doc.text('42881 Lake Babcock Dr, Suite 200', m, y); y += 13;
+    doc.text('Babcock Ranch FL 33982', m, y); y += 13;
+    doc.text('P: (239) 236-2626', m, y); y += 13;
+    doc.text('eFax: (239) 236-2959', m, y); y += 20;
 
-    // --- INTRO PARAGRAPH ---
-    const clientName = offer.client_name || '____________________';
-    const intro = `Dear Sir/Madam,\n\nOn behalf of our client, ${clientName} and/or assigns ("Purchaser"), this non-binding Letter of Intent outlines the basic terms under which the Purchaser would be willing to acquire the above-referenced property ("Property").`;
-    doc.setFontSize(10.5);
-    const introLines = doc.splitTextToSize(intro, maxW);
-    doc.text(introLines, margin, y);
-    y += introLines.length * 14 + 14;
+    // --- Gold line ---
+    doc.setDrawColor(...gold); doc.setLineWidth(2);
+    doc.line(m, y, W - m, y); y += 25;
 
-    // --- TERMS TABLE ---
-    const closingCostMap = { per_local_custom: 'Per Local Custom', seller_pays: 'Seller Pays', buyer_pays: 'Buyer Pays' };
-    const titleMap = { seller_chooses: 'Seller Chooses', buyer_chooses: 'Buyer Chooses' };
+    // --- Letter of Intent ---
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...navy);
+    doc.text('Letter of Intent', W / 2, y, { align: 'center' }); y += 30;
 
-    const terms = [
-      ['Purchase Price:', offer.offer_price ? '$' + Number(offer.offer_price).toLocaleString('en-US', { minimumFractionDigits: 0 }) : 'TBD'],
-      ['Cap Rate:', offer.cap_rate ? offer.cap_rate + '%' : 'TBD'],
-      ['NOI:', offer.noi ? '$' + Number(offer.noi).toLocaleString('en-US', { minimumFractionDigits: 0 }) : 'TBD'],
-      ['Due Diligence Period:', (offer.dd_period_days || 21) + ' days from execution of PSA'],
-      ['Earnest Money Deposit:', offer.initial_deposit ? '$' + Number(offer.initial_deposit).toLocaleString('en-US', { minimumFractionDigits: 0 }) : 'TBD'],
-      ['Closing:', 'Within ' + (offer.closing_days || 15) + ' days after expiration of Due Diligence Period'],
-      ['Closing Costs:', closingCostMap[offer.closing_cost_resp] || 'Per Local Custom'],
-      ['Title Company:', (titleMap[offer.title_company_choice] || 'Seller Chooses')],
-      ['PSA Draft:', 'Seller to provide within ' + (offer.psa_draft_days || 3) + ' business days of LOI acceptance'],
+    // --- PROPERTY ---
+    writeSection('PROPERTY(s):', d.propertyLine);
+
+    // --- PURCHASER ---
+    writeSection('PURCHASER:', `${d.clientName} and/or Assigns (an LLC to be formed prior to closing)`);
+
+    // --- SELLER ---
+    writeSection('SELLER:', 'Seller of Record, assigns, and/or affiliated entity');
+
+    // --- PURCHASE PRICE ---
+    writeSection('PURCHASE PRICE:', `${d.price}, reflective of a ${d.capRate} Cap Rate calculated on current annual rent from tenant of ${d.noi} ("Net Operating Income")`);
+
+    // --- DUE DILIGENCE ---
+    writeSection('DUE DILIGENCE PERIOD:', `Purchaser shall have ${d.ddDays} calendar days to review all materials relating to the Property. Due Diligence Period shall start upon mutual execution of the Purchase & Sale Agreement ("PSA"). All site visits shall be coordinated through the Seller and/or ${d.sellerBroker} ("Seller's Broker"). Purchaser shall indemnify, defend, and hold Seller harmless from and against any liability, loss, damage, claim, cost or expense, which may result from any entry upon or inspection of the Property by Purchaser, its employees, agents, or contractors`);
+
+    // --- EARNEST MONEY ---
+    writeSection('EARNEST MONEY DEPOSIT:', `Purchaser shall deposit ${d.deposit} upon executed Purchase Contract. Entire deposit shall become non-refundable at the expiration of the Due Diligence Period and applied to the final purchase price at Closing.`);
+
+    // --- CLOSING ---
+    writeSection('CLOSING:', `Closing of the purchase of the Property shall occur within ${d.closingDays} calendar days from the expiration of Due Diligence.`);
+
+    // --- CLOSING COSTS ---
+    writeSection('CLOSING COSTS:', `${d.closingCost}. Purchaser and Seller shall be responsible for paying their own respective attorney's fees, if any.`);
+
+    // --- PSA ---
+    writeSection('PURCHASE & SALE AGREEMENT:', `Seller shall provide Draft of Purchase & Sale Agreement for Seller's review within ${d.psaDays} business days of this mutually executed Letter of Intent. Seller and Purchaser agree to use good faith efforts to execute final Purchase & Sale Contract within ${d.goodFaithDays} business days of this fully executed Letter of Intent`);
+
+    // --- MATERIALS ---
+    checkPage(80);
+    heading(); doc.text('MATERIALS PROVIDED BY SELLER:', m, y); y += 16;
+    body();
+    const matItems = [
+      'Fully executed lease including all exhibits mentioned',
+      'Existing Phase I environmental report & additional reports (if applicable)',
+      'Existing Survey',
+      'Any other applicable documents relating to Property in seller\'s possession—to be named in Purchase Contract'
     ];
+    matItems.forEach(item => { doc.text('• ' + item, m + 10, y); y += 13; });
+    y += 8;
 
-    if (offer.offer_expiration_date) {
-      const expDate = new Date(offer.offer_expiration_date + 'T00:00:00');
-      terms.push(['Offer Expiration:', expDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })]);
-    }
+    // --- TITLE ---
+    writeSection('TITLE:', `The title will be good and marketable, free and clear of all liens and encumbrances, and insurable at reasonable rates by a title company designated by the ${d.titleCompany}.`);
 
-    const labelW = 150;
-    const valueX = margin + labelW + 10;
-    const valueW = maxW - labelW - 10;
+    // --- BROKERAGE ---
+    writeSection('BROKERAGE SERVICES:', `${d.sellerBroker} exclusively represents the Seller. American Net Lease exclusively represents the buyer. Seller shall be responsible for brokerage commissions and shall be agreed upon per a separate agreement`);
 
-    terms.forEach(([label, value]) => {
-      // Check if we need a new page
-      if (y > 700) {
-        doc.addPage();
-        y = 50;
-      }
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(...navy);
-      doc.text(label, margin, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...darkText);
-      const valLines = doc.splitTextToSize(value, valueW);
-      doc.text(valLines, valueX, y);
-      y += Math.max(valLines.length * 14, 18) + 4;
-    });
+    // --- 1031 ---
+    writeSection('1031 EXCHANGE:', 'Seller and Purchaser agree to cooperate should either party elect to sell or purchase the Property under the provision of an Internal Revenue Service Section 1031 Tax Deferred Exchange');
 
-    y += 14;
+    // --- EXPIRATION ---
+    writeSection('EXPIRATION:', `This offer will expire on ${d.expDate} at 5:00PM Eastern Standard Time`);
 
-    // --- CLOSING PARAGRAPHS ---
-    if (y > 650) { doc.addPage(); y = 50; }
-    const closing1 = 'This Letter of Intent is for discussion purposes only and does not create a binding agreement between the parties. A binding agreement will only be created upon the mutual execution of a Purchase and Sale Agreement.';
-    const c1Lines = doc.splitTextToSize(closing1, maxW);
-    doc.setFontSize(10.5);
-    doc.setTextColor(...darkText);
-    doc.text(c1Lines, margin, y);
-    y += c1Lines.length * 14 + 14;
+    // --- NON-BINDING ---
+    checkPage(60);
+    body(); doc.setFontSize(9);
+    const nb = 'THIS LETTER IS NON-BINDING and does not constitute a contract to purchase or sell. Only a fully executed purchase contract between Purchaser and Seller will constitute a binding agreement. If mutually executed below, this letter does express the mutual intention of the parties to enter into binding agreements incorporating the above-stated terms.';
+    const nbLines = doc.splitTextToSize(nb, maxW);
+    doc.text(nbLines, m, y);
+    y += nbLines.length * 12 + 20;
 
-    const closing2 = 'If the general terms outlined above are acceptable, please execute below and return a copy of this letter to the undersigned.';
-    const c2Lines = doc.splitTextToSize(closing2, maxW);
-    doc.text(c2Lines, margin, y);
-    y += c2Lines.length * 14 + 28;
+    // --- SIGNATURE ---
+    checkPage(120);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+    doc.text('THE GENERAL TERMS OUTLINED ABOVE ARE HEREBY AGREED TO BY:', m, y); y += 25;
+    body(); doc.setFontSize(10);
 
-    // --- SIGNATURE BLOCK ---
-    if (y > 650) { doc.addPage(); y = 50; }
-    doc.setFont('helvetica', 'normal');
-    doc.text('Respectfully submitted,', margin, y);
-    y += 40;
+    // Purchaser sig
+    doc.text('PURCHASER:', m, y); y += 16;
+    doc.text('Signature: ________________________  Date: _______________', m, y); y += 16;
+    doc.text('Name: (Print) ______________________', m, y); y += 16;
+    doc.text('Company: __________________________', m, y); y += 16;
+    doc.text('Phone Number: _____________________', m, y); y += 16;
+    doc.text('Address: ___________________________', m, y); y += 16;
+    doc.text('E-Mail Address: ____________________', m, y); y += 24;
 
-    doc.setDrawColor(150, 150, 150);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, margin + 200, y);
-    y += 14;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Quinn Mitchell', margin, y);
-    y += 14;
-    doc.setFont('helvetica', 'normal');
-    doc.text('American Net Lease', margin, y);
-    y += 14;
-    doc.text(`On behalf of: ${clientName}`, margin, y);
-    y += 40;
+    // Seller sig
+    checkPage(100);
+    doc.text('SELLER:', m, y); y += 16;
+    doc.text('Signature: ________________________  Date: _______________', m, y); y += 16;
+    doc.text('Name: (Print) ______________________', m, y); y += 16;
+    doc.text('Company: __________________________', m, y); y += 16;
+    doc.text('Phone Number: _____________________', m, y); y += 16;
+    doc.text('Address: ___________________________', m, y); y += 16;
+    doc.text('E-Mail Address: ____________________', m, y);
 
-    // --- ACCEPTANCE BLOCK ---
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...navy);
-    doc.text('ACCEPTED AND AGREED:', margin, y);
-    y += 28;
-    doc.setTextColor(...darkText);
-    doc.setFont('helvetica', 'normal');
+    doc.save(d.filename + '.pdf');
+    } catch (err) { console.error('LOI PDF error:', err); alert('Error generating PDF: ' + err.message); }
+  }
 
-    // Seller signature
-    doc.line(margin, y, margin + 220, y);
-    y += 14;
-    doc.text('Seller / Authorized Representative', margin, y);
-    y += 28;
+  // ============================================================
+  // GENERATE LOI — EDITABLE DOCX
+  // ============================================================
+  async function generateLOIDOCX(offerId) {
+    const d = getLOIData(offerId);
+    if (!d) return;
 
-    doc.text('Date: ______________________', margin, y);
+    if (!window.docx) { alert('DOCX library loading — try again in a moment.'); return; }
 
-    // --- FOOTER ---
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
-      doc.setPage(p);
-      doc.setFontSize(7.5);
-      doc.setTextColor(150, 150, 150);
-      doc.text('American Net Lease  |  Confidential', W / 2, 760, { align: 'center' });
-    }
+    try {
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, TabStopType, TabStopPosition, HeadingLevel } = window.docx;
 
-    // --- SAVE ---
-    const filename = `LOI_${(offer.tenant || 'Property').replace(/[^a-zA-Z0-9]/g, '_')}_${(offer.client_name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_${today.toISOString().split('T')[0]}.pdf`;
-    doc.save(filename);
-    } catch (err) {
-      console.error('LOI generation error:', err);
-      alert('Error generating LOI: ' + err.message);
-    }
+    const bold = (text, size) => new TextRun({ text, bold: true, size: size || 20, font: 'Calibri' });
+    const normal = (text, size) => new TextRun({ text, size: size || 20, font: 'Calibri' });
+    const para = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 120 }, ...opts });
+
+    const sections = [{
+      properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } },
+      children: [
+        // Header
+        para([bold('Dwaine Clarke', 24)]),
+        para([bold('American Net Lease', 28)], { spacing: { after: 40 } }),
+        para([normal('Broker / Owner')]),
+        para([normal('dclarke@americannetlease.com')]),
+        para([normal('42881 Lake Babcock Dr, Suite 200')]),
+        para([normal('Babcock Ranch FL 33982')]),
+        para([normal('P: (239) 236-2626')]),
+        para([normal('eFax: (239) 236-2959')]),
+        // Separator
+        new Paragraph({ spacing: { before: 200, after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'BF9B30' } } }),
+        // Title
+        para([bold('Letter of Intent', 32)], { alignment: AlignmentType.CENTER, spacing: { before: 200, after: 300 } }),
+        // Sections
+        para([bold('PROPERTY(s):'), normal(`  ${d.propertyLine}`)]),
+        para([]),
+        para([bold('PURCHASER:'), normal(`  ${d.clientName} and/or Assigns (an LLC to be formed prior to closing)`)]),
+        para([]),
+        para([bold('SELLER:'), normal('  Seller of Record, assigns, and/or affiliated entity')]),
+        para([]),
+        para([bold('PURCHASE PRICE:'), normal(`  ${d.price}, reflective of a ${d.capRate} Cap Rate calculated on current annual rent from tenant of ${d.noi} ("Net Operating Income")`)]),
+        para([]),
+        para([bold('DUE DILIGENCE PERIOD:'), normal(`  Purchaser shall have ${d.ddDays} calendar days to review all materials relating to the Property. Due Diligence Period shall start upon mutual execution of the Purchase & Sale Agreement ("PSA"). All site visits shall be coordinated through the Seller and/or ${d.sellerBroker} ("Seller's Broker"). Purchaser shall indemnify, defend, and hold Seller harmless from and against any liability, loss, damage, claim, cost or expense, which may result from any entry upon or inspection of the Property by Purchaser, its employees, agents, or contractors`)]),
+        para([]),
+        para([bold('EARNEST MONEY DEPOSIT:'), normal(`  Purchaser shall deposit ${d.deposit} upon executed Purchase Contract. Entire deposit shall become non-refundable at the expiration of the Due Diligence Period and applied to the final purchase price at Closing.`)]),
+        para([]),
+        para([bold('CLOSING:'), normal(`  Closing of the purchase of the Property shall occur within ${d.closingDays} calendar days from the expiration of Due Diligence.`)]),
+        para([]),
+        para([bold('CLOSING COSTS:'), normal(`  ${d.closingCost}. Purchaser and Seller shall be responsible for paying their own respective attorney's fees, if any.`)]),
+        para([]),
+        para([bold('PURCHASE & SALE AGREEMENT:'), normal(`  Seller shall provide Draft of Purchase & Sale Agreement for Seller's review within ${d.psaDays} business days of this mutually executed Letter of Intent. Seller and Purchaser agree to use good faith efforts to execute final Purchase & Sale Contract within ${d.goodFaithDays} business days of this fully executed Letter of Intent`)]),
+        para([]),
+        para([bold('MATERIALS PROVIDED BY SELLER:'), normal('  Materials provided by Seller for Purchaser\'s review will include any of the following in Seller\'s possession')]),
+        para([normal('Fully executed lease including all exhibits mentioned')], { indent: { left: 360 } }),
+        para([normal('Existing Phase I environmental report & additional reports (if applicable)')], { indent: { left: 360 } }),
+        para([normal('Existing Survey')], { indent: { left: 360 } }),
+        para([normal('Any other applicable documents relating to Property in seller\'s possession—to be named in Purchase Contract')], { indent: { left: 360 } }),
+        para([]),
+        para([bold('TITLE:'), normal(`  The title will be good and marketable, free and clear of all liens and encumbrances, and insurable at reasonable rates by a title company designated by the ${d.titleCompany}.`)]),
+        para([]),
+        para([bold('BROKERAGE SERVICES:'), normal(`  ${d.sellerBroker} exclusively represents the Seller. American Net Lease exclusively represents the buyer. Seller shall be responsible for brokerage commissions and shall be agreed upon per a separate agreement`)]),
+        para([]),
+        para([bold('1031 EXCHANGE:'), normal('  Seller and Purchaser agree to cooperate should either party elect to sell or purchase the Property under the provision of an Internal Revenue Service Section 1031 Tax Deferred Exchange')]),
+        para([]),
+        para([bold('EXPIRATION:'), normal(`  This offer will expire on ${d.expDate} at 5:00PM Eastern Standard Time`)]),
+        para([]),
+        para([normal('THIS LETTER IS NON-BINDING and does not constitute a contract to purchase or sell. Only a fully executed purchase contract between Purchaser and Seller will constitute a binding agreement. If mutually executed below, this letter does express the mutual intention of the parties to enter into binding agreements incorporating the above-stated terms.', 18)], { spacing: { before: 200, after: 200 } }),
+        para([]),
+        para([bold('THE GENERAL TERMS OUTLINED ABOVE ARE HEREBY AGREED TO BY:')], { spacing: { before: 200 } }),
+        para([]),
+        para([bold('PURCHASER:')]),
+        para([normal('Signature: ________________________  Date: _______________')]),
+        para([normal('Name: (Print) ______________________')]),
+        para([normal('Company: __________________________')]),
+        para([normal('Phone Number: _____________________')]),
+        para([normal('Address: ___________________________')]),
+        para([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')]),
+        para([normal('Fax Number: _______________________')]),
+        para([]),
+        para([bold('SELLER:')]),
+        para([normal('Signature: ________________________  Date: _______________')]),
+        para([normal('Name: (Print) ______________________')]),
+        para([normal('Company: __________________________')]),
+        para([normal('Phone Number: _____________________')]),
+        para([normal('Address: ___________________________')]),
+        para([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')]),
+        para([normal('Fax Number: _______________________')]),
+      ]
+    }];
+
+    const docxDoc = new Document({ sections });
+    const blob = await Packer.toBlob(docxDoc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = d.filename + '.docx'; a.click();
+    URL.revokeObjectURL(url);
+    } catch (err) { console.error('LOI DOCX error:', err); alert('Error generating DOCX: ' + err.message); }
   }
 
   // Initial load
