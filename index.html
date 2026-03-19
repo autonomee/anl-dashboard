@@ -1690,7 +1690,52 @@
       <button class="btn btn-ghost" onclick="closeOfferModal()">Cancel</button>
       <button class="btn btn-primary" id="offer-loi-btn" onclick="generateLOIFromModal('pdf')" style="display:none;background:var(--purple);border-color:var(--purple)">Generate PDF</button>
       <button class="btn btn-primary" id="offer-docx-btn" onclick="generateLOIFromModal('docx')" style="display:none;background:var(--cyan);border-color:var(--cyan)">Generate DOCX</button>
+      <button class="btn btn-primary" id="offer-ds-btn" onclick="openDocuSignFromModal()" style="display:none;background:var(--green);border-color:var(--green)">Send for Signature</button>
       <button class="btn btn-primary" id="offer-save-btn" onclick="saveOffer()">Create Offer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DOCUSIGN SEND MODAL -->
+<div class="modal-overlay" id="docusign-modal">
+  <div class="modal" style="max-width:500px">
+    <h3 style="margin-bottom:16px">Send LOI for Signature</h3>
+    <input type="hidden" id="ds-offer-id">
+    <div class="form-group">
+      <label>Signer Name *</label>
+      <input type="text" id="ds-signer-name" placeholder="Seller or Listing Broker name">
+    </div>
+    <div class="form-group">
+      <label>Signer Email *</label>
+      <input type="email" id="ds-signer-email" placeholder="email@example.com">
+    </div>
+    <div class="form-group">
+      <label>CC Email (optional)</label>
+      <input type="email" id="ds-cc-email" placeholder="CC recipient email">
+    </div>
+    <div class="form-group">
+      <label>CC Name</label>
+      <input type="text" id="ds-cc-name" placeholder="CC recipient name">
+    </div>
+    <div class="form-group">
+      <label>Document Source</label>
+      <div style="display:flex;gap:12px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ds-doc-source" value="generated" checked> Auto-generated LOI
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ds-doc-source" value="upload"> Upload edited file
+        </label>
+      </div>
+    </div>
+    <div class="form-group" id="ds-upload-group" style="display:none">
+      <label>Upload DOCX File</label>
+      <input type="file" id="ds-file-upload" accept=".docx,.pdf" style="font-size:13px">
+    </div>
+    <div id="ds-status" style="display:none;padding:10px;border-radius:6px;font-size:13px;margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDocuSignModal()">Cancel</button>
+      <button class="btn btn-primary" id="ds-send-btn" onclick="sendToDocuSign()" style="background:var(--green);border-color:var(--green)">Send for Signature</button>
     </div>
   </div>
 </div>
@@ -2729,7 +2774,7 @@
       <td style="font-size:12px">${deposit}</td>
       <td><span class="status-badge status-${o.status}">${statusLabel}</span></td>
       <td style="font-size:12px;color:var(--muted)">${expires}</td>
-      <td><button class="btn-sm" onclick="event.stopPropagation();generateLOI('${o.id}')" style="background:var(--purple);color:white;border-color:var(--purple)" title="Download PDF">PDF</button> <button class="btn-sm" onclick="event.stopPropagation();generateLOIDOCX('${o.id}')" style="background:var(--cyan);color:white;border-color:var(--cyan)" title="Download editable DOCX">DOCX</button>${o.status === 'accepted' && !o.deal_id ? ' <button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();generateLOI('${o.id}')" style="background:var(--purple);color:white;border-color:var(--purple)" title="Download PDF">PDF</button> <button class="btn-sm" onclick="event.stopPropagation();generateLOIDOCX('${o.id}')" style="background:var(--cyan);color:white;border-color:var(--cyan)" title="Download editable DOCX">DOCX</button> <button class="btn-sm" onclick="event.stopPropagation();openDocuSignModal('${o.id}')" style="background:var(--green);color:white;border-color:var(--green)" title="Send for e-signature via DocuSign">Send</button>${o.status === 'accepted' && !o.deal_id ? ' <button class="btn-sm" onclick="event.stopPropagation();createDealFromOffer(\'' + o.id + '\')" style="background:var(--green);color:white;border-color:var(--green)">Create Deal</button>' : ''}</td>
     </tr>`;
     }).join('');
   }
@@ -2962,6 +3007,7 @@
     document.getElementById('offer-notes').value = '';
     document.getElementById('offer-loi-btn').style.display = 'none';
     document.getElementById('offer-docx-btn').style.display = 'none';
+    document.getElementById('offer-ds-btn').style.display = 'none';
     document.getElementById('offer-modal').classList.add('open');
   }
 
@@ -2997,6 +3043,7 @@
     document.getElementById('offer-notes').value = offer.notes || '';
     document.getElementById('offer-loi-btn').style.display = 'inline-flex';
     document.getElementById('offer-docx-btn').style.display = 'inline-flex';
+    document.getElementById('offer-ds-btn').style.display = 'inline-flex';
     document.getElementById('offer-modal').classList.add('open');
   }
 
@@ -3592,6 +3639,7 @@
     const bold = (text, size) => new TextRun({ text, bold: true, size: size || sz, font: 'Times New Roman' });
     const normal = (text, size) => new TextRun({ text, size: size || sz, font: 'Times New Roman' });
     const link = (text, size) => new TextRun({ text, size: size || sz, font: 'Times New Roman', color: '0563C1' });
+    const anchor = (tag) => new TextRun({ text: tag, size: 2, color: 'FFFFFF', font: 'Times New Roman' });
     const hp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 0, line: 260 }, ...opts });
     const sp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 160, line: 260 }, ...opts });
     const noBorders = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
@@ -3659,8 +3707,8 @@
         sp([normal('Fax Number: _______________________')]),
         hp([]),
         hp([bold('SELLER:')], { spacing: { after: 80 } }),
-        hp([normal('Signature: ________________________  Date: _______________')], { spacing: { after: 40 } }),
-        hp([normal('Name: (Print) ______________________')], { spacing: { after: 40 } }),
+        hp([normal('Signature: '), anchor('{{SELLER_SIGN}}'), normal('________________________  Date: '), anchor('{{SELLER_DATE}}'), normal('_______________')], { spacing: { after: 40 } }),
+        hp([normal('Name: (Print) '), anchor('{{SELLER_NAME}}'), normal('______________________')], { spacing: { after: 40 } }),
         hp([normal('Company: __________________________')], { spacing: { after: 40 } }),
         hp([normal('Phone Number: _____________________')], { spacing: { after: 40 } }),
         hp([normal('Address: ___________________________')], { spacing: { after: 40 } }),
@@ -3676,6 +3724,215 @@
     a.href = url; a.download = d.filename + '.docx'; a.click();
     URL.revokeObjectURL(url);
     } catch (err) { console.error('LOI DOCX error:', err); alert('Error generating DOCX: ' + err.message); }
+  }
+
+  // ============================================================
+  // DOCUSIGN INTEGRATION
+  // ============================================================
+  // Toggle upload field visibility
+  document.querySelectorAll('input[name="ds-doc-source"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.getElementById('ds-upload-group').style.display =
+        document.querySelector('input[name="ds-doc-source"]:checked').value === 'upload' ? 'block' : 'none';
+    });
+  });
+
+  function openDocuSignModal(offerId) {
+    const offer = allOffers.find(o => o.id === offerId);
+    if (!offer) { alert('Offer not found'); return; }
+    document.getElementById('ds-offer-id').value = offerId;
+    document.getElementById('ds-signer-name').value = offer.listing_broker_name || '';
+    document.getElementById('ds-signer-email').value = '';
+    document.getElementById('ds-cc-email').value = '';
+    document.getElementById('ds-cc-name').value = '';
+    document.querySelector('input[name="ds-doc-source"][value="generated"]').checked = true;
+    document.getElementById('ds-upload-group').style.display = 'none';
+    document.getElementById('ds-file-upload').value = '';
+    const statusEl = document.getElementById('ds-status');
+    statusEl.style.display = 'none';
+    statusEl.textContent = '';
+    document.getElementById('ds-send-btn').disabled = false;
+    document.getElementById('ds-send-btn').textContent = 'Send for Signature';
+    document.getElementById('docusign-modal').classList.add('open');
+  }
+
+  function openDocuSignFromModal() {
+    const editId = document.getElementById('offer-edit-id').value;
+    if (!editId) { alert('Save the offer first.'); return; }
+    closeOfferModal();
+    openDocuSignModal(editId);
+  }
+
+  function closeDocuSignModal() {
+    document.getElementById('docusign-modal').classList.remove('open');
+  }
+
+  function dsStatus(msg, type) {
+    const el = document.getElementById('ds-status');
+    el.style.display = 'block';
+    el.textContent = msg;
+    el.style.background = type === 'error' ? 'var(--red-dim)' : type === 'success' ? 'var(--green-dim)' : 'var(--yellow-dim)';
+    el.style.color = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--yellow)';
+  }
+
+  async function generateDocxBlob(offerId) {
+    const d = getLOIData(offerId);
+    if (!d) return null;
+    if (!window.docx) { alert('DOCX library loading...'); return null; }
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, HeadingLevel } = window.docx;
+    const sz = 18;
+    const bold = (text, size) => new TextRun({ text, bold: true, size: size || sz, font: 'Times New Roman' });
+    const normal = (text, size) => new TextRun({ text, size: size || sz, font: 'Times New Roman' });
+    const link = (text, size) => new TextRun({ text, size: size || sz, font: 'Times New Roman', color: '0563C1' });
+    const anchor = (tag) => new TextRun({ text: tag, size: 2, color: 'FFFFFF', font: 'Times New Roman' });
+    const hp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 0, line: 260 }, ...opts });
+    const sp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 160, line: 260 }, ...opts });
+    const noBorders = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
+
+    const headerTable = new Table({
+      rows: [new TableRow({ children: [
+        new TableCell({ borders: noBorders, width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+          hp([bold('Dwaine Clarke', 22)]),
+          hp([bold('American Net Lease', 20)]),
+          hp([normal('Broker / Owner', sz)]),
+          hp([link('dclarke@americannetlease.com', sz)]),
+        ]}),
+        new TableCell({ borders: noBorders, width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+          hp([normal('42881 Lake Babcock Dr, Suite 200', sz)], { alignment: AlignmentType.RIGHT }),
+          hp([normal('Babcock Ranch FL 33982', sz)], { alignment: AlignmentType.RIGHT }),
+          hp([normal('P: (239) 236-2626', sz)], { alignment: AlignmentType.RIGHT }),
+          hp([normal('eFax: (239) 236-2959', sz)], { alignment: AlignmentType.RIGHT }),
+        ]}),
+      ]})],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: { top: {style: BorderStyle.NONE}, bottom: {style: BorderStyle.NONE}, left: {style: BorderStyle.NONE}, right: {style: BorderStyle.NONE}, insideHorizontal: {style: BorderStyle.NONE}, insideVertical: {style: BorderStyle.NONE} },
+    });
+
+    const sections = [{ children: [
+      headerTable,
+      hp([new TextRun({ text: '', size: 8 })]),
+      new Paragraph({ border: { bottom: { color: 'BF9B30', space: 1, style: BorderStyle.SINGLE, size: 12 } }, spacing: { after: 200 }, children: [] }),
+      hp([bold('Letter of Intent', 28)], { alignment: AlignmentType.CENTER, spacing: { before: 100, after: 200 } }),
+      sp([bold('PROPERTY(s):'), normal(`  ${d.propertyLine}`)]),
+      sp([bold('PURCHASER:'), normal(`  ${d.clientName} and/or Assigns (an LLC to be formed prior to closing)`)]),
+      sp([bold('SELLER:'), normal('  Seller of Record, assigns, and/or affiliated entity')]),
+      sp([bold('PURCHASE PRICE:'), normal(`  ${d.price}. CAP Rate: ${d.capRate}. Net Operating Income (NOI): ${d.noi}`)]),
+      sp([bold('DUE DILIGENCE PERIOD:'), normal(`  Purchaser shall have ${d.ddDays} business days from the date of the Effective Date of the Purchase and Sales Agreement (PSA) to conduct due diligence`)]),
+      sp([bold('EARNEST MONEY DEPOSIT:'), normal(`  ${d.deposit} deposited within 3 business days of execution`)]),
+      sp([bold('CLOSING:'), normal(`  Purchaser shall close within ${d.closingDays} business days from the expiration of the Due Diligence Period`)]),
+      sp([bold('CLOSING COSTS:'), normal(`  ${d.closingCost}`)]),
+      sp([bold('PSA AGREEMENT:'), normal(`  Seller to provide PSA draft within ${d.psaDays} business days of execution of this LOI. Both parties to mutually execute PSA in good faith within ${d.goodFaithDays} business days`)]),
+      sp([bold('MATERIALS PROVIDED BY SELLER:'), normal('  Materials provided by Seller for Purchaser\'s review will include any of the following in Seller\'s possession')]),
+      sp([normal('Survey, environmental reports (Phase I and Phase II), property condition assessment, title commitment, lease agreements, operating statements (trailing 12 months), rent roll, insurance certificates, access agreements, tenant correspondence, CAM reconciliations, and tax returns')]),
+      sp([bold('TITLE:'), normal(`  The title will be good and marketable, free and clear of all liens and encumbrances, and insurable at reasonable rates by a title company designated by the ${d.titleCompany}.`)]),
+      sp([bold('BROKERAGE SERVICES:'), normal(`  ${d.sellerBroker} exclusively represents the Seller. American Net Lease exclusively represents the buyer. Seller shall be responsible for brokerage commissions and shall be agreed upon per a separate agreement`)]),
+      sp([bold('1031 EXCHANGE:'), normal('  Seller and Purchaser agree to cooperate should either party elect to sell or purchase the Property under the provision of an Internal Revenue Service Section 1031 Tax Deferred Exchange')]),
+      sp([bold('EXPIRATION:'), normal(`  This offer will expire on ${d.expDate} at 5:00PM Eastern Standard Time`)]),
+      sp([normal('THIS LETTER IS NON-BINDING and does not constitute a contract to purchase or sell. Only a fully executed purchase contract between Purchaser and Seller will constitute a binding agreement. If mutually executed below, this letter does express the mutual intention of the parties to enter into binding agreements incorporating the above-stated terms.', 17)], { spacing: { before: 160, after: 200 } }),
+      sp([bold('THE GENERAL TERMS OUTLINED ABOVE ARE HEREBY AGREED TO BY:')], { spacing: { before: 160 } }),
+      hp([]),
+      hp([bold('PURCHASER:')], { spacing: { after: 80 } }),
+      hp([normal('Signature: ________________________  Date: _______________')], { spacing: { after: 40 } }),
+      hp([normal('Name: (Print) ______________________')], { spacing: { after: 40 } }),
+      hp([normal('Company: __________________________')], { spacing: { after: 40 } }),
+      hp([normal('Phone Number: _____________________')], { spacing: { after: 40 } }),
+      hp([normal('Address: ___________________________')], { spacing: { after: 40 } }),
+      hp([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')], { spacing: { after: 40 } }),
+      sp([normal('Fax Number: _______________________')]),
+      hp([]),
+      hp([bold('SELLER:')], { spacing: { after: 80 } }),
+      hp([normal('Signature: '), anchor('{{SELLER_SIGN}}'), normal('________________________  Date: '), anchor('{{SELLER_DATE}}'), normal('_______________')], { spacing: { after: 40 } }),
+      hp([normal('Name: (Print) '), anchor('{{SELLER_NAME}}'), normal('______________________')], { spacing: { after: 40 } }),
+      hp([normal('Company: __________________________')], { spacing: { after: 40 } }),
+      hp([normal('Phone Number: _____________________')], { spacing: { after: 40 } }),
+      hp([normal('Address: ___________________________')], { spacing: { after: 40 } }),
+      hp([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')], { spacing: { after: 40 } }),
+      hp([normal('Fax Number: _______________________')]),
+    ]}];
+
+    const docxDoc = new Document({ sections });
+    return { blob: await Packer.toBlob(docxDoc), filename: d.filename };
+  }
+
+  async function sendToDocuSign() {
+    const offerId = document.getElementById('ds-offer-id').value;
+    const signerName = document.getElementById('ds-signer-name').value.trim();
+    const signerEmail = document.getElementById('ds-signer-email').value.trim();
+    const ccName = document.getElementById('ds-cc-name').value.trim();
+    const ccEmail = document.getElementById('ds-cc-email').value.trim();
+    const source = document.querySelector('input[name="ds-doc-source"]:checked').value;
+
+    if (!signerName || !signerEmail) { dsStatus('Signer name and email are required.', 'error'); return; }
+    if (!signerEmail.includes('@')) { dsStatus('Invalid email address.', 'error'); return; }
+
+    const btn = document.getElementById('ds-send-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    dsStatus('Preparing document...', 'info');
+
+    try {
+      let base64Data, fileName;
+
+      if (source === 'upload') {
+        const fileInput = document.getElementById('ds-file-upload');
+        if (!fileInput.files.length) { dsStatus('Please select a file to upload.', 'error'); btn.disabled = false; btn.textContent = 'Send for Signature'; return; }
+        const file = fileInput.files[0];
+        fileName = file.name.replace(/\.[^.]+$/, '');
+        const arrayBuf = await file.arrayBuffer();
+        base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+      } else {
+        dsStatus('Generating LOI document...', 'info');
+        const result = await generateDocxBlob(offerId);
+        if (!result) { dsStatus('Failed to generate document.', 'error'); btn.disabled = false; btn.textContent = 'Send for Signature'; return; }
+        fileName = result.filename;
+        const arrayBuf = await result.blob.arrayBuffer();
+        base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+      }
+
+      dsStatus('Sending to DocuSign...', 'info');
+      const res = await fetch('/api/docusign-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentBase64: base64Data,
+          documentName: fileName,
+          signerName,
+          signerEmail,
+          ccName: ccName || undefined,
+          ccEmail: ccEmail || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        dsStatus(`Error: ${data.error || 'Failed to send'}`, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Send for Signature';
+        return;
+      }
+
+      // Update offer with DocuSign info
+      if (data.envelopeId) {
+        try {
+          await supaUpdate('offers', offerId, {
+            docusign_envelope_id: data.envelopeId,
+            docusign_status: 'sent'
+          });
+          await loadOffers();
+          renderOffers();
+        } catch (e) { console.warn('Could not update offer with DocuSign status:', e); }
+      }
+
+      dsStatus(`Sent! Envelope ID: ${data.envelopeId}. ${signerName} will receive an email to sign.`, 'success');
+      btn.textContent = 'Sent!';
+      setTimeout(closeDocuSignModal, 3000);
+
+    } catch (err) {
+      console.error('DocuSign send error:', err);
+      dsStatus(`Error: ${err.message}`, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Send for Signature';
+    }
   }
 
   // Initial load
