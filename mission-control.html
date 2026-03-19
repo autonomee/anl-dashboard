@@ -3459,22 +3459,29 @@
       y += lines.length * 13 + 12;
     }
 
-    // --- HEADER ---
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...dark);
+    // --- HEADER (two-column: name left, address right) ---
+    const rX = W - m; // right edge
+    const hStart = y;
+    // Left column
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...dark);
     doc.text('Dwaine Clarke', m, y); y += 14;
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...navy);
-    doc.text('American Net Lease', m, y); y += 14;
-    body(); doc.setFontSize(10);
-    doc.text('Broker / Owner', m, y); y += 13;
-    doc.text('dclarke@americannetlease.com', m, y); y += 13;
-    doc.text('42881 Lake Babcock Dr, Suite 200', m, y); y += 13;
-    doc.text('Babcock Ranch FL 33982', m, y); y += 13;
-    doc.text('P: (239) 236-2626', m, y); y += 13;
-    doc.text('eFax: (239) 236-2959', m, y); y += 20;
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+    doc.text('American Net Lease', m, y); y += 12;
+    body(); doc.setFontSize(9);
+    doc.text('Broker / Owner', m, y); y += 11;
+    doc.setTextColor(5, 99, 193);
+    doc.text('dclarke@americannetlease.com', m, y);
+    // Right column (overlaid at same Y positions)
+    doc.setTextColor(...dark); doc.setFontSize(9);
+    doc.text('42881 Lake Babcock Dr, Suite 200', rX, hStart, { align: 'right' });
+    doc.text('Babcock Ranch FL 33982', rX, hStart + 12, { align: 'right' });
+    doc.text('P: (239) 236-2626', rX, hStart + 24, { align: 'right' });
+    doc.text('eFax: (239) 236-2959', rX, hStart + 36, { align: 'right' });
+    y += 18;
 
     // --- Gold line ---
     doc.setDrawColor(...gold); doc.setLineWidth(2);
-    doc.line(m, y, W - m, y); y += 25;
+    doc.line(m, y, W - m, y); y += 22;
 
     // --- Letter of Intent ---
     doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...navy);
@@ -3581,80 +3588,86 @@
     try {
     const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, TabStopType, TabStopPosition, HeadingLevel } = window.docx;
 
-    const bold = (text, size) => new TextRun({ text, bold: true, size: size || 20, font: 'Calibri' });
-    const normal = (text, size) => new TextRun({ text, size: size || 20, font: 'Calibri' });
-    const para = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 120 }, ...opts });
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, TableBorders } = window.docx;
+
+    const sz = 18; // 9pt body text
+    const bold = (text, size) => new TextRun({ text, bold: true, size: size || sz, font: 'Calibri' });
+    const normal = (text, size) => new TextRun({ text, size: size || sz, font: 'Calibri' });
+    const link = (text, size) => new TextRun({ text, size: size || sz, font: 'Calibri', color: '0563C1' });
+    const hp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 0, line: 260 }, ...opts });
+    const sp = (children, opts) => new Paragraph({ children: Array.isArray(children) ? children : [children], spacing: { after: 160, line: 260 }, ...opts });
+    const noBorders = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
+
+    // Header table: name/title left, address/phone right
+    const headerTable = new Table({
+      rows: [
+        new TableRow({ children: [
+          new TableCell({ borders: noBorders, width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+            hp([bold('Dwaine Clarke', 22)]),
+            hp([bold('American Net Lease', 20)]),
+            hp([normal('Broker / Owner', sz)]),
+            hp([link('dclarke@americannetlease.com', sz)]),
+          ]}),
+          new TableCell({ borders: noBorders, width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+            hp([normal('42881 Lake Babcock Dr, Suite 200', sz)], { alignment: AlignmentType.RIGHT }),
+            hp([normal('Babcock Ranch FL 33982', sz)], { alignment: AlignmentType.RIGHT }),
+            hp([normal('P: (239) 236-2626', sz)], { alignment: AlignmentType.RIGHT }),
+            hp([normal('eFax: (239) 236-2959', sz)], { alignment: AlignmentType.RIGHT }),
+          ]}),
+        ]}),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } },
+    });
 
     const sections = [{
       properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } },
       children: [
-        // Header
-        para([bold('Dwaine Clarke', 24)]),
-        para([bold('American Net Lease', 28)], { spacing: { after: 40 } }),
-        para([normal('Broker / Owner')]),
-        para([normal('dclarke@americannetlease.com')]),
-        para([normal('42881 Lake Babcock Dr, Suite 200')]),
-        para([normal('Babcock Ranch FL 33982')]),
-        para([normal('P: (239) 236-2626')]),
-        para([normal('eFax: (239) 236-2959')]),
-        // Separator
-        new Paragraph({ spacing: { before: 200, after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'BF9B30' } } }),
+        // Header table
+        headerTable,
+        // Gold separator
+        new Paragraph({ spacing: { before: 200, after: 100 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'BF9B30' } } }),
         // Title
-        para([bold('Letter of Intent', 32)], { alignment: AlignmentType.CENTER, spacing: { before: 200, after: 300 } }),
-        // Sections
-        para([bold('PROPERTY(s):'), normal(`  ${d.propertyLine}`)]),
-        para([]),
-        para([bold('PURCHASER:'), normal(`  ${d.clientName} and/or Assigns (an LLC to be formed prior to closing)`)]),
-        para([]),
-        para([bold('SELLER:'), normal('  Seller of Record, assigns, and/or affiliated entity')]),
-        para([]),
-        para([bold('PURCHASE PRICE:'), normal(`  ${d.price}, reflective of a ${d.capRate} Cap Rate calculated on current annual rent from tenant of ${d.noi} ("Net Operating Income")`)]),
-        para([]),
-        para([bold('DUE DILIGENCE PERIOD:'), normal(`  Purchaser shall have ${d.ddDays} calendar days to review all materials relating to the Property. Due Diligence Period shall start upon mutual execution of the Purchase & Sale Agreement ("PSA"). All site visits shall be coordinated through the Seller and/or ${d.sellerBroker} ("Seller's Broker"). Purchaser shall indemnify, defend, and hold Seller harmless from and against any liability, loss, damage, claim, cost or expense, which may result from any entry upon or inspection of the Property by Purchaser, its employees, agents, or contractors`)]),
-        para([]),
-        para([bold('EARNEST MONEY DEPOSIT:'), normal(`  Purchaser shall deposit ${d.deposit} upon executed Purchase Contract. Entire deposit shall become non-refundable at the expiration of the Due Diligence Period and applied to the final purchase price at Closing.`)]),
-        para([]),
-        para([bold('CLOSING:'), normal(`  Closing of the purchase of the Property shall occur within ${d.closingDays} calendar days from the expiration of Due Diligence.`)]),
-        para([]),
-        para([bold('CLOSING COSTS:'), normal(`  ${d.closingCost}. Purchaser and Seller shall be responsible for paying their own respective attorney's fees, if any.`)]),
-        para([]),
-        para([bold('PURCHASE & SALE AGREEMENT:'), normal(`  Seller shall provide Draft of Purchase & Sale Agreement for Seller's review within ${d.psaDays} business days of this mutually executed Letter of Intent. Seller and Purchaser agree to use good faith efforts to execute final Purchase & Sale Contract within ${d.goodFaithDays} business days of this fully executed Letter of Intent`)]),
-        para([]),
-        para([bold('MATERIALS PROVIDED BY SELLER:'), normal('  Materials provided by Seller for Purchaser\'s review will include any of the following in Seller\'s possession')]),
-        para([normal('Fully executed lease including all exhibits mentioned')], { indent: { left: 360 } }),
-        para([normal('Existing Phase I environmental report & additional reports (if applicable)')], { indent: { left: 360 } }),
-        para([normal('Existing Survey')], { indent: { left: 360 } }),
-        para([normal('Any other applicable documents relating to Property in seller\'s possession—to be named in Purchase Contract')], { indent: { left: 360 } }),
-        para([]),
-        para([bold('TITLE:'), normal(`  The title will be good and marketable, free and clear of all liens and encumbrances, and insurable at reasonable rates by a title company designated by the ${d.titleCompany}.`)]),
-        para([]),
-        para([bold('BROKERAGE SERVICES:'), normal(`  ${d.sellerBroker} exclusively represents the Seller. American Net Lease exclusively represents the buyer. Seller shall be responsible for brokerage commissions and shall be agreed upon per a separate agreement`)]),
-        para([]),
-        para([bold('1031 EXCHANGE:'), normal('  Seller and Purchaser agree to cooperate should either party elect to sell or purchase the Property under the provision of an Internal Revenue Service Section 1031 Tax Deferred Exchange')]),
-        para([]),
-        para([bold('EXPIRATION:'), normal(`  This offer will expire on ${d.expDate} at 5:00PM Eastern Standard Time`)]),
-        para([]),
-        para([normal('THIS LETTER IS NON-BINDING and does not constitute a contract to purchase or sell. Only a fully executed purchase contract between Purchaser and Seller will constitute a binding agreement. If mutually executed below, this letter does express the mutual intention of the parties to enter into binding agreements incorporating the above-stated terms.', 18)], { spacing: { before: 200, after: 200 } }),
-        para([]),
-        para([bold('THE GENERAL TERMS OUTLINED ABOVE ARE HEREBY AGREED TO BY:')], { spacing: { before: 200 } }),
-        para([]),
-        para([bold('PURCHASER:')]),
-        para([normal('Signature: ________________________  Date: _______________')]),
-        para([normal('Name: (Print) ______________________')]),
-        para([normal('Company: __________________________')]),
-        para([normal('Phone Number: _____________________')]),
-        para([normal('Address: ___________________________')]),
-        para([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')]),
-        para([normal('Fax Number: _______________________')]),
-        para([]),
-        para([bold('SELLER:')]),
-        para([normal('Signature: ________________________  Date: _______________')]),
-        para([normal('Name: (Print) ______________________')]),
-        para([normal('Company: __________________________')]),
-        para([normal('Phone Number: _____________________')]),
-        para([normal('Address: ___________________________')]),
-        para([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')]),
-        para([normal('Fax Number: _______________________')]),
+        hp([bold('Letter of Intent', 28)], { alignment: AlignmentType.CENTER, spacing: { before: 200, after: 260 } }),
+        // Body sections
+        sp([bold('PROPERTY(s):'), normal(`  ${d.propertyLine}`)]),
+        sp([bold('PURCHASER:'), normal(`  ${d.clientName} and/or Assigns (an LLC to be formed prior to closing)`)]),
+        sp([bold('SELLER:'), normal('  Seller of Record, assigns, and/or affiliated entity')]),
+        sp([bold('PURCHASE PRICE:'), normal(`  ${d.price}, reflective of a ${d.capRate} Cap Rate calculated on current annual rent from tenant of ${d.noi} ("Net Operating Income")`)]),
+        sp([bold('DUE DILIGENCE PERIOD:'), normal(`  Purchaser shall have ${d.ddDays} calendar days to review all materials relating to the Property. Due Diligence Period shall start upon mutual execution of the Purchase & Sale Agreement ("PSA"). All site visits shall be coordinated through the Seller and/or ${d.sellerBroker} ("Seller's Broker"). Purchaser shall indemnify, defend, and hold Seller harmless from and against any liability, loss, damage, claim, cost or expense, which may result from any entry upon or inspection of the Property by Purchaser, its employees, agents, or contractors`)]),
+        sp([bold('EARNEST MONEY DEPOSIT:'), normal(`  Purchaser shall deposit ${d.deposit} upon executed Purchase Contract. Entire deposit shall become non-refundable at the expiration of the Due Diligence Period and applied to the final purchase price at Closing.`)]),
+        sp([bold('CLOSING:'), normal(`  Closing of the purchase of the Property shall occur within ${d.closingDays} calendar days from the expiration of Due Diligence.`)]),
+        sp([bold('CLOSING COSTS:'), normal(`  ${d.closingCost}. Purchaser and Seller shall be responsible for paying their own respective attorney's fees, if any.`)]),
+        sp([bold('PURCHASE & SALE AGREEMENT:'), normal(`  Seller shall provide Draft of Purchase & Sale Agreement for Seller's review within ${d.psaDays} business days of this mutually executed Letter of Intent. Seller and Purchaser agree to use good faith efforts to execute final Purchase & Sale Contract within ${d.goodFaithDays} business days of this fully executed Letter of Intent`)]),
+        sp([bold('MATERIALS PROVIDED BY SELLER:'), normal('  Materials provided by Seller for Purchaser\'s review will include any of the following in Seller\'s possession')]),
+        hp([normal('Fully executed lease including all exhibits mentioned')], { indent: { left: 360 }, spacing: { after: 40 } }),
+        hp([normal('Existing Phase I environmental report & additional reports (if applicable)')], { indent: { left: 360 }, spacing: { after: 40 } }),
+        hp([normal('Existing Survey')], { indent: { left: 360 }, spacing: { after: 40 } }),
+        sp([normal('Any other applicable documents relating to Property in seller\'s possession—to be named in Purchase Contract')], { indent: { left: 360 } }),
+        sp([bold('TITLE:'), normal(`  The title will be good and marketable, free and clear of all liens and encumbrances, and insurable at reasonable rates by a title company designated by the ${d.titleCompany}.`)]),
+        sp([bold('BROKERAGE SERVICES:'), normal(`  ${d.sellerBroker} exclusively represents the Seller. American Net Lease exclusively represents the buyer. Seller shall be responsible for brokerage commissions and shall be agreed upon per a separate agreement`)]),
+        sp([bold('1031 EXCHANGE:'), normal('  Seller and Purchaser agree to cooperate should either party elect to sell or purchase the Property under the provision of an Internal Revenue Service Section 1031 Tax Deferred Exchange')]),
+        sp([bold('EXPIRATION:'), normal(`  This offer will expire on ${d.expDate} at 5:00PM Eastern Standard Time`)]),
+        sp([normal('THIS LETTER IS NON-BINDING and does not constitute a contract to purchase or sell. Only a fully executed purchase contract between Purchaser and Seller will constitute a binding agreement. If mutually executed below, this letter does express the mutual intention of the parties to enter into binding agreements incorporating the above-stated terms.', 17)], { spacing: { before: 160, after: 200 } }),
+        sp([bold('THE GENERAL TERMS OUTLINED ABOVE ARE HEREBY AGREED TO BY:')], { spacing: { before: 160 } }),
+        hp([]),
+        hp([bold('PURCHASER:')], { spacing: { after: 80 } }),
+        hp([normal('Signature: ________________________  Date: _______________')], { spacing: { after: 40 } }),
+        hp([normal('Name: (Print) ______________________')], { spacing: { after: 40 } }),
+        hp([normal('Company: __________________________')], { spacing: { after: 40 } }),
+        hp([normal('Phone Number: _____________________')], { spacing: { after: 40 } }),
+        hp([normal('Address: ___________________________')], { spacing: { after: 40 } }),
+        hp([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')], { spacing: { after: 40 } }),
+        sp([normal('Fax Number: _______________________')]),
+        hp([]),
+        hp([bold('SELLER:')], { spacing: { after: 80 } }),
+        hp([normal('Signature: ________________________  Date: _______________')], { spacing: { after: 40 } }),
+        hp([normal('Name: (Print) ______________________')], { spacing: { after: 40 } }),
+        hp([normal('Company: __________________________')], { spacing: { after: 40 } }),
+        hp([normal('Phone Number: _____________________')], { spacing: { after: 40 } }),
+        hp([normal('Address: ___________________________')], { spacing: { after: 40 } }),
+        hp([normal('E-Mail Address: ____________________  City/State/Zip: ____________________')], { spacing: { after: 40 } }),
+        hp([normal('Fax Number: _______________________')]),
       ]
     }];
 
