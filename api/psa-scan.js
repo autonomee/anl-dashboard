@@ -140,7 +140,7 @@ Only include milestones and contacts you can actually find in the document. For 
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-6-20250514',
         max_tokens: 4096,
         messages: [{ role: 'user', content }]
       })
