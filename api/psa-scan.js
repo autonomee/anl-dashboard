@@ -2,6 +2,15 @@
 // Vercel Serverless Function
 // Requires ANTHROPIC_API_KEY env var
 
+// Allow larger request bodies for PDF uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb'
+    }
+  }
+};
+
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -79,13 +88,20 @@ Return ONLY valid JSON (no markdown, no code fences) in this format:
 Only include milestones you can find or calculate from the document. If a date is described relative to another date (e.g., "10 days after Effective Date"), calculate the actual date if the reference date is known. If not, include the calculation notes without a due_date.`
     });
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    };
+
+    // PDF documents require the beta header
+    if (isPDF) {
+      headers['anthropic-beta'] = 'pdfs-2024-09-25';
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers,
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250514',
         max_tokens: 2048,
@@ -95,8 +111,11 @@ Only include milestones you can find or calculate from the document. If a date i
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Anthropic API error:', errText);
-      return res.status(500).json({ error: `API error: ${response.status}` });
+      console.error('Anthropic API error:', response.status, errText);
+      // Return the actual error detail so frontend can show it
+      let detail = '';
+      try { detail = JSON.parse(errText)?.error?.message || errText; } catch { detail = errText; }
+      return res.status(502).json({ error: `Claude API error: ${detail}` });
     }
 
     const data = await response.json();
