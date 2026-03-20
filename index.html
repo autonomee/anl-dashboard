@@ -1103,6 +1103,140 @@
     .deal-subtask-check:hover { border-color: var(--green); }
     .deal-subtask-check.checked { background: var(--green); border-color: var(--green); color: white; }
     .deal-subtask-item .ds-assignee { color: var(--muted); font-size: 11px; margin-left: auto; }
+
+    /* ---- DOCUMENT UPLOAD ---- */
+    .doc-upload-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .doc-upload-section label.section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .doc-file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .doc-file-row .doc-label {
+      font-weight: 600;
+      min-width: 36px;
+      color: var(--text-secondary);
+    }
+    .doc-file-row .doc-filename {
+      color: var(--accent);
+      font-size: 12px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .doc-file-row .doc-remove {
+      color: var(--red);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+    }
+    .doc-file-row .doc-remove:hover { opacity: 0.7; }
+    .btn-scan {
+      background: var(--purple);
+      color: white;
+      border: 1px solid var(--purple);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-scan:hover { opacity: 0.85; }
+    .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---- CRITICAL DATES ---- */
+    .critical-dates-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .critical-dates-section .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .critical-dates-section .section-header label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .cd-table-wrap {
+      overflow-x: auto;
+      margin-top: 4px;
+    }
+    .cd-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .cd-table th {
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .cd-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .cd-table tr:last-child td { border-bottom: none; }
+    .cd-table input[type="date"] {
+      font-size: 12px;
+      padding: 2px 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      width: 130px;
+    }
+    .cd-table input[type="text"] {
+      font-size: 12px;
+      padding: 2px 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      width: 100%;
+    }
+    .cd-table input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--green);
+    }
+    .cd-due-green { color: var(--green); font-weight: 600; }
+    .cd-due-yellow { color: var(--yellow); font-weight: 600; }
+    .cd-due-red { color: var(--red); font-weight: 600; }
+    .cd-due-done { color: var(--muted); text-decoration: line-through; }
+    .cd-milestone { font-weight: 500; white-space: nowrap; }
+    .cd-scan-status {
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -1555,6 +1689,49 @@
       <label>Notes</label>
       <textarea id="deal-notes" placeholder="Deal notes..."></textarea>
     </div>
+    <!-- Document Upload Section -->
+    <div id="deal-doc-section" class="doc-upload-section" style="display:none">
+      <label class="section-label">Documents</label>
+      <div class="doc-file-row">
+        <span class="doc-label">LOI:</span>
+        <input type="file" id="deal-loi-file" accept=".pdf,.docx" style="font-size:12px;max-width:180px" onchange="handleDealFileUpload('loi')">
+        <span id="deal-loi-filename" class="doc-filename" style="display:none"></span>
+        <span id="deal-loi-remove" class="doc-remove" style="display:none" onclick="removeDealFile('loi')" title="Remove file">&times;</span>
+      </div>
+      <div class="doc-file-row">
+        <span class="doc-label">PSA:</span>
+        <input type="file" id="deal-psa-file" accept=".pdf,.docx" style="font-size:12px;max-width:180px" onchange="handleDealFileUpload('psa')">
+        <span id="deal-psa-filename" class="doc-filename" style="display:none"></span>
+        <span id="deal-psa-remove" class="doc-remove" style="display:none" onclick="removeDealFile('psa')" title="Remove file">&times;</span>
+        <button class="btn-scan" id="deal-psa-scan-btn" style="display:none" onclick="scanPSADocument()">Scan PSA</button>
+      </div>
+      <div id="deal-scan-status" class="cd-scan-status" style="display:none"></div>
+    </div>
+
+    <!-- Critical Dates Section -->
+    <div id="deal-critical-dates-section" class="critical-dates-section" style="display:none">
+      <div class="section-header">
+        <label>Critical Dates</label>
+        <button class="btn-sm" style="font-size:11px;padding:3px 8px" onclick="seedCriticalDates(editingDealId)" id="cd-seed-btn">+ Initialize Dates</button>
+      </div>
+      <div class="cd-table-wrap">
+        <table class="cd-table">
+          <thead>
+            <tr>
+              <th>Milestone</th>
+              <th>Calculation Notes</th>
+              <th>PSA &sect;</th>
+              <th>Due Date</th>
+              <th style="text-align:center">Confirmed</th>
+              <th style="text-align:right">Due In</th>
+            </tr>
+          </thead>
+          <tbody id="cd-tbody"></tbody>
+        </table>
+      </div>
+      <div id="cd-empty" class="empty-state" style="font-size:12px;display:none">No critical dates yet. Click "Initialize Dates" to create milestones.</div>
+    </div>
+
     <!-- Subtask checklist for existing deals -->
     <div id="deal-subtask-section" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
@@ -1895,6 +2072,8 @@
   let memberFilterName = '';    // display name for the badge
   let isAdmin = true;           // true when no ?member= param (admin sees all)
   let editingDealId = null;
+  let allDealCriticalDates = [];
+  let pendingDealFiles = { loi: null, psa: null }; // temp file data before save
 
   // Parse ?member= URL parameter on load
   (function parseUrlParams() {
@@ -1977,6 +2156,15 @@
     } catch (e) {
       console.error('Failed to load deal subtasks:', e);
       allDealSubtasks = [];
+    }
+  }
+
+  async function loadDealCriticalDates() {
+    try {
+      allDealCriticalDates = await supaFetch('deal_critical_dates?order=sort_order.asc,created_at.asc');
+    } catch (e) {
+      console.error('Failed to load critical dates:', e);
+      allDealCriticalDates = [];
     }
   }
 
@@ -2723,6 +2911,22 @@
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     const daysInStage = Math.floor((Date.now() - new Date(deal.updated_at).getTime()) / 86400000);
 
+    // Critical dates indicator for PSA+ stages
+    let cdIndicator = '';
+    if (PSA_STAGES.includes(stageKey)) {
+      const cds = allDealCriticalDates.filter(cd => cd.deal_id === deal.id);
+      if (cds.length > 0) {
+        const confirmed = cds.filter(cd => cd.confirmed).length;
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const overdue = cds.filter(cd => cd.due_date && !cd.confirmed && new Date(cd.due_date + 'T00:00:00') < today).length;
+        if (overdue > 0) {
+          cdIndicator = `<div style="font-size:10px;margin-top:3px;color:var(--red);font-weight:600">${overdue} date${overdue > 1 ? 's' : ''} overdue</div>`;
+        } else {
+          cdIndicator = `<div style="font-size:10px;margin-top:3px;color:var(--muted)">${confirmed}/${cds.length} dates confirmed</div>`;
+        }
+      }
+    }
+
     return `<div class="deal-card" onclick="openEditDealModal('${deal.id}')">
       <div class="deal-tenant">${deal.tenant}</div>
       <div class="deal-location">${deal.city}, ${deal.state}</div>
@@ -2733,7 +2937,233 @@
       </div>
       ${total > 0 ? `<div class="deal-progress"><div class="deal-progress-fill" style="width:${pct}%"></div></div>
       <div style="font-size:10px;color:var(--muted);margin-top:3px">${done}/${total} tasks</div>` : ''}
+      ${cdIndicator}
     </div>`;
+  }
+
+  // ============================================================
+  // CRITICAL DATES
+  // ============================================================
+  const MILESTONES = [
+    { key: 'effective_date', label: 'Effective Date of Contract', sort: 1 },
+    { key: 'rofo', label: 'ROFO', sort: 2 },
+    { key: 'earnest_deposit', label: "Buyer's Earnest Deposit", sort: 3 },
+    { key: 'financing_contingency', label: 'Financing Contingency', sort: 4 },
+    { key: 'inspection_period', label: 'Inspection Period', sort: 5 },
+    { key: 'title_commitment', label: 'Title Commitment', sort: 6 },
+    { key: 'buyer_title_objections', label: "Buyer's Title Objections", sort: 7 },
+    { key: 'tenant_estoppel', label: 'Tenant Estoppel', sort: 8 },
+    { key: 'closing_date', label: 'Closing Date', sort: 9 }
+  ];
+
+  // PSA+ stages where critical dates are relevant
+  const PSA_STAGES = ['psa_received', 'psa_signed', 'escrow_open', 'due_diligence', 'pre_closing', 'closing_day', 'post_closing'];
+
+  async function seedCriticalDates(dealId) {
+    if (!dealId) return;
+    const existing = allDealCriticalDates.filter(cd => cd.deal_id === dealId);
+    if (existing.length > 0) {
+      if (!confirm('Critical dates already exist for this deal. Re-initialize will add missing milestones only. Continue?')) return;
+    }
+    const existingKeys = existing.map(cd => cd.milestone);
+    const toCreate = MILESTONES.filter(m => !existingKeys.includes(m.key));
+    if (toCreate.length === 0) { alert('All milestones already exist.'); return; }
+
+    try {
+      for (const m of toCreate) {
+        await supaInsert('deal_critical_dates', {
+          deal_id: dealId,
+          milestone: m.key,
+          milestone_label: m.label,
+          sort_order: m.sort
+        });
+      }
+      await loadDealCriticalDates();
+      renderCriticalDates(dealId);
+    } catch (e) {
+      console.error('Failed to seed critical dates:', e);
+      alert('Failed to create milestones: ' + e.message);
+    }
+  }
+
+  function renderCriticalDates(dealId) {
+    const tbody = document.getElementById('cd-tbody');
+    const emptyEl = document.getElementById('cd-empty');
+    const seedBtn = document.getElementById('cd-seed-btn');
+    const dates = allDealCriticalDates.filter(cd => cd.deal_id === dealId).sort((a, b) => a.sort_order - b.sort_order);
+
+    if (dates.length === 0) {
+      tbody.innerHTML = '';
+      emptyEl.style.display = 'block';
+      seedBtn.textContent = '+ Initialize Dates';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    seedBtn.textContent = '+ Add Missing';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    tbody.innerHTML = dates.map(cd => {
+      let dueClass = '';
+      let dueText = '—';
+      if (cd.due_date) {
+        const due = new Date(cd.due_date + 'T00:00:00');
+        const diffDays = Math.ceil((due - today) / 86400000);
+        if (cd.confirmed) {
+          dueClass = 'cd-due-done';
+          dueText = 'Done';
+        } else if (diffDays < 0) {
+          dueClass = 'cd-due-red';
+          dueText = `${Math.abs(diffDays)}d overdue`;
+        } else if (diffDays <= 7) {
+          dueClass = 'cd-due-yellow';
+          dueText = diffDays === 0 ? 'Today' : `${diffDays}d`;
+        } else {
+          dueClass = 'cd-due-green';
+          dueText = `${diffDays}d`;
+        }
+      }
+
+      return `<tr>
+        <td class="cd-milestone">${cd.milestone_label}</td>
+        <td><input type="text" value="${cd.calculation_notes || ''}" onchange="saveCriticalDate('${cd.id}','calculation_notes',this.value)" placeholder="e.g. 10 days after effective"></td>
+        <td><input type="text" value="${cd.psa_section || ''}" onchange="saveCriticalDate('${cd.id}','psa_section',this.value)" placeholder="§" style="width:60px"></td>
+        <td><input type="date" value="${cd.due_date || ''}" onchange="saveCriticalDate('${cd.id}','due_date',this.value)"></td>
+        <td style="text-align:center"><input type="checkbox" ${cd.confirmed ? 'checked' : ''} onchange="saveCriticalDate('${cd.id}','confirmed',this.checked)"></td>
+        <td style="text-align:right"><span class="${dueClass}">${dueText}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function saveCriticalDate(id, field, value) {
+    try {
+      const data = { [field]: value, updated_at: new Date().toISOString() };
+      await supaUpdate('deal_critical_dates', id, data);
+      // Update local state
+      const idx = allDealCriticalDates.findIndex(cd => cd.id === id);
+      if (idx >= 0) allDealCriticalDates[idx][field] = value;
+      // Re-render to update due-in colors
+      if (editingDealId) renderCriticalDates(editingDealId);
+    } catch (e) {
+      console.error('Failed to save critical date:', e);
+    }
+  }
+
+  // ---- Document Upload Handlers ----
+  function handleDealFileUpload(type) {
+    const input = document.getElementById(`deal-${type}-file`);
+    const filenameEl = document.getElementById(`deal-${type}-filename`);
+    const removeEl = document.getElementById(`deal-${type}-remove`);
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      pendingDealFiles[type] = { data: e.target.result, name: file.name };
+      filenameEl.textContent = file.name;
+      filenameEl.style.display = 'inline';
+      removeEl.style.display = 'inline';
+      input.style.display = 'none';
+      // Show scan button for PSA
+      if (type === 'psa') {
+        document.getElementById('deal-psa-scan-btn').style.display = 'inline-block';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeDealFile(type) {
+    pendingDealFiles[type] = null;
+    const input = document.getElementById(`deal-${type}-file`);
+    const filenameEl = document.getElementById(`deal-${type}-filename`);
+    const removeEl = document.getElementById(`deal-${type}-remove`);
+    input.value = '';
+    input.style.display = 'inline';
+    filenameEl.style.display = 'none';
+    removeEl.style.display = 'none';
+    if (type === 'psa') {
+      document.getElementById('deal-psa-scan-btn').style.display = 'none';
+    }
+    // If editing, clear from DB
+    if (editingDealId) {
+      supaUpdate('deals', editingDealId, {
+        [`${type}_file_url`]: null,
+        [`${type}_file_name`]: null,
+        updated_at: new Date().toISOString()
+      }).catch(e => console.error('Failed to remove file:', e));
+    }
+  }
+
+  async function scanPSADocument() {
+    const btn = document.getElementById('deal-psa-scan-btn');
+    const statusEl = document.getElementById('deal-scan-status');
+    const psaData = pendingDealFiles.psa;
+    if (!psaData) { alert('Upload a PSA file first.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Scanning...';
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--blue-dim, rgba(59,130,246,0.1))';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = 'AI is reading the PSA document...';
+
+    try {
+      // Extract base64 content from data URL
+      const base64 = psaData.data.split(',')[1];
+      const res = await fetch('/api/psa-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentBase64: base64, documentName: psaData.name })
+      });
+
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      const result = await res.json();
+
+      if (result.milestones && result.milestones.length > 0) {
+        // Ensure milestones exist first
+        const existing = allDealCriticalDates.filter(cd => cd.deal_id === editingDealId);
+        if (existing.length === 0) {
+          await seedCriticalDates(editingDealId);
+        }
+
+        // Update dates from scan results
+        let updated = 0;
+        for (const m of result.milestones) {
+          const cd = allDealCriticalDates.find(c => c.deal_id === editingDealId && c.milestone === m.milestone);
+          if (cd) {
+            const updateData = {};
+            if (m.due_date) updateData.due_date = m.due_date;
+            if (m.calculation_notes) updateData.calculation_notes = m.calculation_notes;
+            if (m.psa_section) updateData.psa_section = m.psa_section;
+            if (Object.keys(updateData).length > 0) {
+              updateData.updated_at = new Date().toISOString();
+              await supaUpdate('deal_critical_dates', cd.id, updateData);
+              Object.assign(cd, updateData);
+              updated++;
+            }
+          }
+        }
+
+        await loadDealCriticalDates();
+        renderCriticalDates(editingDealId);
+        statusEl.style.background = 'var(--green-dim)';
+        statusEl.style.color = 'var(--green)';
+        statusEl.textContent = `Scan complete! ${updated} milestone(s) updated. Review and confirm dates.`;
+      } else {
+        statusEl.style.background = 'var(--yellow-dim)';
+        statusEl.style.color = 'var(--yellow)';
+        statusEl.textContent = 'Scan complete but no dates could be extracted. Enter dates manually.';
+      }
+    } catch (e) {
+      console.error('PSA scan failed:', e);
+      statusEl.style.background = 'var(--red-dim, rgba(239,68,68,0.1))';
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Scan failed: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Scan PSA';
+    }
   }
 
   // ============================================================
@@ -2851,6 +3281,10 @@
     document.getElementById('deal-dd-end').value = '';
     document.getElementById('deal-notes').value = '';
     document.getElementById('deal-subtask-section').style.display = 'none';
+    document.getElementById('deal-doc-section').style.display = 'none';
+    document.getElementById('deal-critical-dates-section').style.display = 'none';
+    document.getElementById('deal-scan-status').style.display = 'none';
+    pendingDealFiles = { loi: null, psa: null };
     document.getElementById('deal-modal').classList.add('open');
     document.getElementById('deal-tenant').focus();
   }
@@ -2876,6 +3310,37 @@
     document.getElementById('deal-subtask-section').style.display = 'block';
     document.getElementById('deal-subtask-stage-filter').value = 'current';
     renderDealSubtasks();
+
+    // Document upload section — always show for editing
+    document.getElementById('deal-doc-section').style.display = 'block';
+    document.getElementById('deal-scan-status').style.display = 'none';
+    pendingDealFiles = { loi: null, psa: null };
+    // Show existing files
+    ['loi', 'psa'].forEach(type => {
+      const fname = deal[`${type}_file_name`];
+      const input = document.getElementById(`deal-${type}-file`);
+      const filenameEl = document.getElementById(`deal-${type}-filename`);
+      const removeEl = document.getElementById(`deal-${type}-remove`);
+      if (fname) {
+        filenameEl.textContent = fname;
+        filenameEl.style.display = 'inline';
+        removeEl.style.display = 'inline';
+        input.style.display = 'none';
+        if (type === 'psa') document.getElementById('deal-psa-scan-btn').style.display = 'inline-block';
+      } else {
+        filenameEl.style.display = 'none';
+        removeEl.style.display = 'none';
+        input.style.display = 'inline';
+        input.value = '';
+        if (type === 'psa') document.getElementById('deal-psa-scan-btn').style.display = 'none';
+      }
+    });
+
+    // Critical dates section — show for PSA+ stages
+    const isPSAStage = PSA_STAGES.includes(deal.stage);
+    document.getElementById('deal-critical-dates-section').style.display = isPSAStage ? 'block' : 'none';
+    if (isPSAStage) renderCriticalDates(dealId);
+
     document.getElementById('deal-modal').classList.add('open');
   }
 
@@ -2963,15 +3428,30 @@
       updated_at: new Date().toISOString()
     };
 
+    // Add pending file uploads
+    if (pendingDealFiles.loi) {
+      data.loi_file_url = pendingDealFiles.loi.data;
+      data.loi_file_name = pendingDealFiles.loi.name;
+    }
+    if (pendingDealFiles.psa) {
+      data.psa_file_url = pendingDealFiles.psa.data;
+      data.psa_file_name = pendingDealFiles.psa.name;
+    }
+
     try {
       if (editId) {
         await supaUpdate('deals', editId, data);
       } else {
         data.loi_date = new Date().toISOString().split('T')[0];
-        await supaInsert('deals', data);
+        const created = await supaInsert('deals', data);
+        // Auto-seed critical dates if creating at PSA+ stage
+        if (created && created[0] && PSA_STAGES.includes(stage)) {
+          await seedCriticalDates(created[0].id);
+        }
       }
       closeDealModal();
-      await Promise.all([loadDeals(), loadDealSubtasks()]);
+      pendingDealFiles = { loi: null, psa: null };
+      await Promise.all([loadDeals(), loadDealSubtasks(), loadDealCriticalDates()]);
       renderPipeline();
     } catch (e) {
       console.error('Save deal failed:', e);
@@ -3430,7 +3910,7 @@
     document.getElementById('refresh-status').textContent = 'Loading...';
     await Promise.all([
       loadTasks(), loadMembers(), loadActivity(),
-      loadDeals(), loadDealSubtasks(), loadOffers(), loadProperties(), loadContacts()
+      loadDeals(), loadDealSubtasks(), loadDealCriticalDates(), loadOffers(), loadProperties(), loadContacts()
     ]);
     renderAll();
     // Initialize business switcher visibility
