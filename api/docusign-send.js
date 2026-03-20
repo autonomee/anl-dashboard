@@ -109,21 +109,21 @@ module.exports = async (req, res) => {
           tabs: {
             signHereTabs: [{
               documentId: '1',
-              anchorString: '{{SELLER_SIGN}}',
+              anchorString: '{{BUYER_SIGN}}',
               anchorYOffset: '0',
               anchorXOffset: '0',
               anchorUnits: 'pixels'
             }],
             dateSignedTabs: [{
               documentId: '1',
-              anchorString: '{{SELLER_DATE}}',
+              anchorString: '{{BUYER_DATE}}',
               anchorYOffset: '0',
               anchorXOffset: '0',
               anchorUnits: 'pixels'
             }],
             fullNameTabs: [{
               documentId: '1',
-              anchorString: '{{SELLER_NAME}}',
+              anchorString: '{{BUYER_NAME}}',
               anchorYOffset: '0',
               anchorXOffset: '0',
               anchorUnits: 'pixels'
