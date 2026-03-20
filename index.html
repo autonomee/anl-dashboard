@@ -1264,6 +1264,11 @@
     .dp-dropdown-item { padding: 6px 10px; cursor: pointer; font-size: 12px; }
     .dp-dropdown-item:hover { background: var(--hover); }
     .dp-dropdown-item small { color: var(--muted); margin-left: 6px; }
+    .dp-suggested { background: rgba(251,191,36,0.06); }
+    .dp-suggested .dp-role::before { content: '⚡ '; font-size: 10px; }
+    .dp-confirm-btn { cursor: pointer; color: var(--green); font-size: 13px; opacity: 0.7; margin-right: 4px; }
+    .dp-confirm-btn:hover { opacity: 1; }
+    .dp-source { font-size: 10px; color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
@@ -3223,15 +3228,16 @@
       }
       const result = await res.json();
 
+      let milestonesUpdated = 0;
+      let contactsAdded = 0;
+
+      // Process milestones
       if (result.milestones && result.milestones.length > 0) {
-        // Ensure milestones exist first
         const existing = allDealCriticalDates.filter(cd => cd.deal_id === editingDealId);
         if (existing.length === 0) {
           await seedCriticalDates(editingDealId);
         }
 
-        // Update dates from scan results
-        let updated = 0;
         for (const m of result.milestones) {
           const cd = allDealCriticalDates.find(c => c.deal_id === editingDealId && c.milestone === m.milestone);
           if (cd) {
@@ -3243,20 +3249,32 @@
               updateData.updated_at = new Date().toISOString();
               await supaUpdate('deal_critical_dates', cd.id, updateData);
               Object.assign(cd, updateData);
-              updated++;
+              milestonesUpdated++;
             }
           }
         }
-
         await loadDealCriticalDates();
         renderCriticalDates(editingDealId);
+      }
+
+      // Process contacts from scan
+      if (result.contacts && result.contacts.length > 0) {
+        statusEl.textContent = `Found ${result.contacts.length} contacts. Saving suggestions...`;
+        contactsAdded = await processPSAContacts(editingDealId, result.contacts);
+      }
+
+      // Show combined status
+      if (milestonesUpdated > 0 || contactsAdded > 0) {
         statusEl.style.background = 'var(--green-dim)';
         statusEl.style.color = 'var(--green)';
-        statusEl.textContent = `Scan complete! ${updated} milestone(s) updated. Review and confirm dates.`;
+        const parts = [];
+        if (milestonesUpdated > 0) parts.push(`${milestonesUpdated} date(s)`);
+        if (contactsAdded > 0) parts.push(`${contactsAdded} contact(s) suggested`);
+        statusEl.textContent = `Scan complete! ${parts.join(', ')}. Review and confirm.`;
       } else {
         statusEl.style.background = 'var(--yellow-dim)';
         statusEl.style.color = 'var(--yellow)';
-        statusEl.textContent = 'Scan complete but no dates could be extracted. Enter dates manually.';
+        statusEl.textContent = 'Scan complete but nothing new extracted. Enter data manually.';
       }
     } catch (e) {
       console.error('PSA scan failed:', e);
@@ -3387,15 +3405,21 @@
     document.getElementById('dp-table').style.display = 'table';
     emptyEl.style.display = 'none';
 
-    tbody.innerHTML = parties.map(dc => {
+    // Sort: confirmed first, then suggested
+    const sorted = [...parties].sort((a, b) => (a.confirmed === false ? 1 : 0) - (b.confirmed === false ? 1 : 0));
+
+    tbody.innerHTML = sorted.map(dc => {
       const c = allContacts.find(ct => ct.id === dc.contact_id) || {};
-      return `<tr>
-        <td class="dp-role">${dc.role}</td>
+      const isSuggested = dc.confirmed === false;
+      const confirmBtn = isSuggested ?
+        `<span class="dp-confirm-btn" onclick="confirmDealParty('${dc.id}')" title="Confirm">✓</span>` : '';
+      return `<tr class="${isSuggested ? 'dp-suggested' : ''}">
+        <td class="dp-role">${dc.role}${dc.source ? `<div class="dp-source">${dc.source}</div>` : ''}</td>
         <td class="dp-name">${c.name || '—'}</td>
         <td style="font-size:12px">${c.company || '—'}</td>
         <td style="font-size:12px">${c.phone || '—'}</td>
         <td style="font-size:12px">${c.email || '—'}</td>
-        <td><span class="dp-remove" onclick="removeDealParty('${dc.id}')" title="Remove">&times;</span></td>
+        <td>${confirmBtn}<span class="dp-remove" onclick="removeDealParty('${dc.id}')" title="Remove">&times;</span></td>
       </tr>`;
     }).join('');
   }
@@ -3414,7 +3438,9 @@
       await supaInsert('deal_contacts', {
         deal_id: editingDealId,
         contact_id: dpSelectedContactId,
-        role: role
+        role: role,
+        confirmed: true,
+        source: 'Manual'
       });
       await loadDealContacts();
       renderDealParties(editingDealId);
@@ -3437,6 +3463,172 @@
     } catch (e) {
       console.error('Failed to remove deal party:', e);
     }
+  }
+
+  async function confirmDealParty(dcId) {
+    try {
+      await supaUpdate('deal_contacts', dcId, { confirmed: true });
+      const dc = allDealContacts.find(d => d.id === dcId);
+      if (dc) dc.confirmed = true;
+      renderDealParties(editingDealId);
+    } catch (e) {
+      console.error('Failed to confirm deal party:', e);
+    }
+  }
+
+  // Smart defaults: auto-suggest deal party contacts from existing data
+  async function autoSuggestDealParties(dealId) {
+    const deal = allDeals.find(d => d.id === dealId);
+    if (!deal) return;
+    const existing = allDealContacts.filter(dc => dc.deal_id === dealId);
+    const suggestions = [];
+
+    // 1. Auto-assign Buyer from client name match
+    if (deal.client_name && !existing.find(dc => dc.role === 'Buyer')) {
+      const clientContact = allContacts.find(c =>
+        c.contact_type === 'client' && c.name && c.name.toLowerCase() === deal.client_name.toLowerCase()
+      );
+      if (clientContact) {
+        suggestions.push({ contact_id: clientContact.id, role: 'Buyer', source: 'Client name match' });
+      }
+    }
+
+    // 2. Auto-assign Seller's Broker from offer listing_broker match
+    if (!existing.find(dc => dc.role === "Seller's Broker")) {
+      const offer = allOffers.find(o => o.deal_id === dealId || (deal.tenant && o.property_search && o.property_search.includes(deal.tenant)));
+      if (offer && offer.listing_broker) {
+        const brokerContact = allContacts.find(c =>
+          c.contact_type === 'broker' && c.name && c.name.toLowerCase().includes(offer.listing_broker.toLowerCase())
+        );
+        if (brokerContact) {
+          suggestions.push({ contact_id: brokerContact.id, role: "Seller's Broker", source: 'Offer listing broker' });
+        }
+      }
+    }
+
+    // 3. If contacts have clear type mappings, suggest them
+    const typeToRole = {
+      'title_agent': 'Escrow/Title Agent',
+      'mortgage_broker': 'Mortgage Broker',
+      'lender': 'Lender',
+      'intermediary_1031': '1031 Intermediary',
+      'transaction_assistant': 'Transaction Assistant'
+    };
+
+    // Insert suggestions as unconfirmed
+    let added = 0;
+    for (const s of suggestions) {
+      const alreadyExists = existing.find(dc => dc.contact_id === s.contact_id && dc.role === s.role) ||
+        allDealContacts.find(dc => dc.deal_id === dealId && dc.contact_id === s.contact_id && dc.role === s.role);
+      if (alreadyExists) continue;
+      try {
+        await supaInsert('deal_contacts', {
+          deal_id: dealId,
+          contact_id: s.contact_id,
+          role: s.role,
+          confirmed: false,
+          source: s.source
+        });
+        added++;
+      } catch (e) {
+        console.error('Failed to auto-suggest:', e);
+      }
+    }
+
+    if (added > 0) {
+      await loadDealContacts();
+      renderDealParties(dealId);
+    }
+    return suggestions;
+  }
+
+  // Process contacts extracted from PSA scan
+  async function processPSAContacts(dealId, scannedContacts) {
+    if (!scannedContacts || scannedContacts.length === 0) return 0;
+    const deal = allDeals.find(d => d.id === dealId);
+    const dealName = deal ? deal.deal_name : 'Unknown Deal';
+    const existing = allDealContacts.filter(dc => dc.deal_id === dealId);
+    let added = 0;
+    const newSuggestions = [];
+
+    for (const sc of scannedContacts) {
+      // Skip if this role is already filled
+      if (existing.find(dc => dc.role === sc.role)) continue;
+
+      // Try to find existing contact by name or email
+      let contact = allContacts.find(c =>
+        (sc.email && c.email && c.email.toLowerCase() === sc.email.toLowerCase()) ||
+        (sc.name && c.name && c.name.toLowerCase() === sc.name.toLowerCase())
+      );
+
+      // If not found, create a new contact
+      if (!contact) {
+        // Map role to contact_type
+        const roleToType = {
+          'Buyer': 'client', 'Seller': 'seller',
+          "Seller's Broker": 'broker', "Seller's Attorney": 'attorney',
+          "Buyer's Attorney": 'attorney', 'Escrow/Title Agent': 'title_agent',
+          'Mortgage Broker': 'mortgage_broker', 'Lender': 'lender',
+          '1031 Intermediary': 'intermediary_1031', 'Transaction Assistant': 'transaction_assistant'
+        };
+        try {
+          const created = await supaInsert('contacts', {
+            name: sc.name,
+            company: sc.company || null,
+            email: sc.email || null,
+            phone: sc.phone || null,
+            contact_type: roleToType[sc.role] || 'other',
+            notes: `Auto-created from PSA scan (${sc.source || 'document'})`
+          });
+          if (created && created[0]) {
+            contact = created[0];
+            allContacts.push(contact);
+          }
+        } catch (e) {
+          console.error('Failed to create contact from scan:', e);
+          continue;
+        }
+      }
+
+      if (!contact) continue;
+
+      // Add as suggested (unconfirmed) deal party
+      try {
+        await supaInsert('deal_contacts', {
+          deal_id: dealId,
+          contact_id: contact.id,
+          role: sc.role,
+          confirmed: false,
+          source: `PSA scan: ${sc.source || 'document'}`
+        });
+        added++;
+        newSuggestions.push({ ...sc, contactId: contact.id });
+      } catch (e) {
+        console.error('Failed to add scanned contact:', e);
+      }
+    }
+
+    if (added > 0) {
+      await loadDealContacts();
+      renderDealParties(dealId);
+
+      // Send Slack notification
+      try {
+        await fetch('/api/notify-deal-parties', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dealName,
+            contacts: scannedContacts.filter(sc => newSuggestions.find(ns => ns.name === sc.name)),
+            source: 'psa_scan'
+          })
+        });
+      } catch (e) {
+        console.error('Slack notification failed:', e);
+      }
+    }
+
+    return added;
   }
 
   function dpSearchContacts() {
@@ -3534,6 +3726,10 @@
     document.getElementById('dp-contact-search').value = '';
     dpSelectedContactId = null;
     renderDealParties(dealId);
+    // Auto-suggest if no parties assigned yet
+    if (allDealContacts.filter(dc => dc.deal_id === dealId).length === 0) {
+      autoSuggestDealParties(dealId);
+    }
 
     // Document upload section — always show for editing
     document.getElementById('deal-doc-section').style.display = 'block';
@@ -3668,9 +3864,14 @@
       } else {
         data.loi_date = new Date().toISOString().split('T')[0];
         const created = await supaInsert('deals', data);
-        // Auto-seed critical dates if creating at PSA+ stage
-        if (created && created[0] && PSA_STAGES.includes(stage)) {
-          await seedCriticalDates(created[0].id);
+        if (created && created[0]) {
+          // Auto-seed critical dates if creating at PSA+ stage
+          if (PSA_STAGES.includes(stage)) {
+            await seedCriticalDates(created[0].id);
+          }
+          // Auto-suggest deal party contacts from existing data
+          await loadDealContacts();
+          autoSuggestDealParties(created[0].id);
         }
       }
       closeDealModal();

@@ -1,4 +1,4 @@
-// PSA Document Scanner — Extracts critical dates using Claude AI
+// PSA Document Scanner — Extracts critical dates AND deal party contacts using Claude AI
 // Vercel Serverless Function
 // Requires ANTHROPIC_API_KEY env var
 
@@ -56,7 +56,10 @@ export default async function handler(req, res) {
       type: 'text',
       text: `You are analyzing a Purchase and Sale Agreement (PSA) for a commercial real estate NNN (triple net lease) property transaction.
 
-Extract the following critical date milestones from the document. For each milestone found, provide:
+Extract TWO things from this document:
+
+## PART 1: CRITICAL DATE MILESTONES
+For each milestone found, provide:
 - milestone: the key (must be one of: effective_date, rofo, earnest_deposit, financing_contingency, inspection_period, title_commitment, buyer_title_objections, tenant_estoppel, closing_date)
 - due_date: the actual date in YYYY-MM-DD format (calculate from the effective date if given as "X days after effective date")
 - calculation_notes: how the date is calculated (e.g., "10 business days after Effective Date", "45 days from contract execution")
@@ -73,6 +76,22 @@ The 9 milestones to look for:
 8. Tenant Estoppel — tenant estoppel certificate deadline
 9. Closing Date — scheduled closing date
 
+## PART 2: DEAL PARTY CONTACTS
+Extract all identifiable people and entities from the document. Look in:
+- The parties/recitals section (Buyer/Purchaser and Seller names)
+- The "Notices" or "Notice" section (lists attorney names, firms, addresses, emails for both parties)
+- Escrow/Title/Closing provisions (title company name)
+- Broker/Commission section (listing broker, buyer's broker)
+- Any signature blocks at the end
+
+For each contact found, provide:
+- role: must be one of: Buyer, Seller, Seller's Broker, Seller's Attorney, Escrow/Title Agent, Mortgage Broker, Lender, 1031 Intermediary, Transaction Assistant, Buyer's Attorney
+- name: person or entity name
+- company: firm/company name (if different from name)
+- email: if found in the document
+- phone: if found in the document
+- source: where in the document you found this (e.g., "Parties section", "Notices - Section 12.1", "Signature block")
+
 Return ONLY valid JSON (no markdown, no code fences) in this format:
 {
   "milestones": [
@@ -82,10 +101,28 @@ Return ONLY valid JSON (no markdown, no code fences) in this format:
       "calculation_notes": "Date of last signature",
       "psa_section": "Section 1.1"
     }
+  ],
+  "contacts": [
+    {
+      "role": "Seller",
+      "name": "ABC Properties LLC",
+      "company": "ABC Properties LLC",
+      "email": null,
+      "phone": null,
+      "source": "Parties section, page 1"
+    },
+    {
+      "role": "Seller's Attorney",
+      "name": "John Smith",
+      "company": "Holland & Knight LLP",
+      "email": "john.smith@hklaw.com",
+      "phone": "(555) 123-4567",
+      "source": "Notices - Section 12.1"
+    }
   ]
 }
 
-Only include milestones you can find or calculate from the document. If a date is described relative to another date (e.g., "10 days after Effective Date"), calculate the actual date if the reference date is known. If not, include the calculation notes without a due_date.`
+Only include milestones and contacts you can actually find in the document. For contacts, be thorough — check every section for names, especially the Notices section which typically lists attorneys with full contact details.`
     });
 
     const headers = {
@@ -104,7 +141,7 @@ Only include milestones you can find or calculate from the document. If a date i
       headers,
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250514',
-        max_tokens: 2048,
+        max_tokens: 4096,
         messages: [{ role: 'user', content }]
       })
     });
@@ -112,7 +149,6 @@ Only include milestones you can find or calculate from the document. If a date i
     if (!response.ok) {
       const errText = await response.text();
       console.error('Anthropic API error:', response.status, errText);
-      // Return the actual error detail so frontend can show it
       let detail = '';
       try { detail = JSON.parse(errText)?.error?.message || errText; } catch { detail = errText; }
       return res.status(502).json({ error: `Claude API error: ${detail}` });
@@ -124,6 +160,10 @@ Only include milestones you can find or calculate from the document. If a date i
     // Parse JSON from response (strip code fences if present)
     const jsonStr = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     const result = JSON.parse(jsonStr);
+
+    // Ensure both arrays exist
+    if (!result.milestones) result.milestones = [];
+    if (!result.contacts) result.contacts = [];
 
     return res.status(200).json(result);
 
