@@ -1269,6 +1269,34 @@
     .dp-confirm-btn { cursor: pointer; color: var(--green); font-size: 13px; opacity: 0.7; margin-right: 4px; }
     .dp-confirm-btn:hover { opacity: 1; }
     .dp-source { font-size: 10px; color: var(--muted); font-style: italic; }
+
+    /* DD Documents Tracker */
+    .dd-docs-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .dd-docs-section .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .dd-docs-section .section-header label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .dd-docs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dd-doc-slot { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); }
+    .dd-doc-slot.dd-uploaded { border-color: var(--green); background: rgba(34,197,94,0.04); }
+    .dd-doc-slot.dd-missing { border-color: var(--border); }
+    .dd-doc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .dd-doc-icon { font-size: 12px; }
+    .dd-doc-type { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
+    .dd-doc-category { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface); color: var(--muted); text-transform: uppercase; }
+    .dd-doc-file { display: flex; align-items: center; gap: 4px; }
+    .dd-doc-filename { font-size: 11px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+    .dd-doc-remove { cursor: pointer; color: var(--red); font-size: 14px; opacity: 0.6; }
+    .dd-doc-remove:hover { opacity: 1; }
+    .dd-doc-upload { font-size: 11px; max-width: 100%; }
+    .dd-progress-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .dd-progress-badge.complete { background: rgba(34,197,94,0.15); color: var(--green); }
+    .dd-progress-badge.partial { background: rgba(251,191,36,0.15); color: var(--yellow); }
+    .dd-progress-badge.empty { background: rgba(239,68,68,0.1); color: var(--red); }
+
+    /* Subtask type badges */
+    .ds-type-badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; margin-left: 4px; }
+    .ds-type-bot { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .ds-type-human { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .ds-type-hybrid { background: rgba(251,191,36,0.15); color: #fbbf24; }
   </style>
 </head>
 <body>
@@ -1784,6 +1812,15 @@
       <div id="deal-scan-status" class="cd-scan-status" style="display:none"></div>
     </div>
 
+    <!-- DD Documents Tracker -->
+    <div id="deal-dd-docs-section" class="dd-docs-section" style="display:none">
+      <div class="section-header">
+        <label>Due Diligence Documents</label>
+        <span id="dd-docs-progress" class="dd-progress-badge empty">0/5 received</span>
+      </div>
+      <div class="dd-docs-grid" id="dd-docs-grid"></div>
+    </div>
+
     <!-- Critical Dates Section -->
     <div id="deal-critical-dates-section" class="critical-dates-section" style="display:none">
       <div class="section-header">
@@ -2156,6 +2193,7 @@
   let allDealContacts = [];
   let dpSelectedContactId = null;
   let pendingDealFiles = { loi: null, psa: null }; // temp file data before save
+  let allDealDocuments = [];
 
   // Parse ?member= URL parameter on load
   (function parseUrlParams() {
@@ -2256,6 +2294,15 @@
     } catch (e) {
       console.error('Failed to load deal contacts:', e);
       allDealContacts = [];
+    }
+  }
+
+  async function loadDealDocuments() {
+    try {
+      allDealDocuments = await supaFetch('deal_documents?order=created_at.asc');
+    } catch (e) {
+      console.error('Failed to load deal documents:', e);
+      allDealDocuments = [];
     }
   }
 
@@ -3030,6 +3077,12 @@
       <div style="font-size:10px;color:var(--muted);margin-top:3px">${done}/${total} tasks</div>` : ''}
       ${cdIndicator}
       ${allDealContacts.filter(dc => dc.deal_id === deal.id).length > 0 ? `<div style="font-size:10px;margin-top:2px;color:var(--muted)">${allDealContacts.filter(dc => dc.deal_id === deal.id).length} party contacts</div>` : ''}
+      ${DD_STAGES.includes(stageKey) ? (() => {
+        const ddDocs = allDealDocuments.filter(d => d.deal_id === deal.id);
+        const uploaded = REQUIRED_DD_DOCS.filter(t => ddDocs.some(d => d.doc_type === t)).length;
+        const color = uploaded === REQUIRED_DD_DOCS.length ? 'var(--green)' : uploaded > 0 ? 'var(--yellow)' : 'var(--muted)';
+        return `<div style="font-size:10px;margin-top:2px;color:${color}">DD Docs: ${uploaded}/${REQUIRED_DD_DOCS.length}</div>`;
+      })() : ''}
     </div>`;
   }
 
@@ -3057,6 +3110,71 @@
     intermediary_1031: '1031 Intermediary', transaction_assistant: 'Transaction Asst.', other: 'Other'
   };
 
+  // DD Document types for the Due Diligence tracker
+  const DD_DOC_TYPES = [
+    { type: 'lease', label: 'Lease', category: 'Lease' },
+    { type: 'survey', label: 'Survey', category: 'Survey' },
+    { type: 'phase1', label: 'Phase 1 Environmental', category: 'Environmental' },
+    { type: 'phase2', label: 'Phase 2 Environmental', category: 'Environmental' },
+    { type: 'estoppel', label: 'Estoppel Certificate', category: 'Closing Docs' },
+    { type: 'title_commitment', label: 'Title Commitment', category: 'Closing Docs' },
+    { type: 'rent_roll', label: 'Rent Roll', category: 'Lease' },
+    { type: 'tenant_financials', label: 'Tenant Financial Statements', category: 'Other' }
+  ];
+
+  // Required DD docs (Phase 2 is optional)
+  const REQUIRED_DD_DOCS = ['lease', 'survey', 'phase1', 'estoppel', 'title_commitment'];
+
+  // DD-relevant stages (escrow open and beyond)
+  const DD_STAGES = ['escrow_open', 'due_diligence', 'pre_closing', 'closing_day'];
+
+  // Transaction Steps — matches the ANL Transaction Steps document
+  const TRANSACTION_STEPS = {
+    loi_accepted: [
+      { key: 'upload_loi', title: 'Upload LOI to Deal Pipeline', assignee: 'Joy', type: 'human', sort: 1 },
+      { key: 'confirm_deal_summary', title: 'Confirm Deal Summary in CRM', assignee: 'Joy', type: 'human', sort: 2 },
+      { key: 'confirm_commission', title: 'Confirm commission split with listing broker', assignee: 'Dwaine', type: 'human', sort: 3 },
+      { key: 'update_property', title: 'Review/Update Property record', assignee: 'Joy', type: 'human', sort: 4 },
+      { key: 'referral_sheet', title: 'Prepare referral sheet email if applicable', assignee: 'Bot', type: 'bot', sort: 5 }
+    ],
+    psa_received: [
+      { key: 'review_contacts', title: 'Review/Confirm Deal Contact Roles', assignee: 'Joy', type: 'human', sort: 1 },
+      { key: 'review_dates', title: 'Review/Confirm Critical Dates', assignee: 'Joy', type: 'human', sort: 2 },
+      { key: 'draft_attorney_email', title: 'Draft email with LOI & PSA to attorney', assignee: 'Bot', type: 'bot', sort: 3 },
+      { key: 'create_dd_folder', title: 'Create DD folder + prepare email with link', assignee: 'Bot', type: 'bot', sort: 4 }
+    ],
+    psa_signed: [
+      { key: 'critical_dates_pdf', title: 'Generate Critical Dates PDF + email draft', assignee: 'Bot', type: 'bot', sort: 1 },
+      { key: 'create_calendar', title: 'Add milestones to Client Google Calendar', assignee: 'Bot', type: 'bot', sort: 2 }
+    ],
+    escrow_open: [
+      { key: 'collect_dd_docs', title: 'Collect & Upload Due Diligence Files', assignee: 'Joy', type: 'hybrid', sort: 1 },
+      { key: 'next_steps_email', title: 'Prepare "Next Steps" email draft to client', assignee: 'Bot', type: 'bot', sort: 2 }
+    ],
+    due_diligence: [
+      { key: 'review_dd', title: 'Review DD items with client/attorney', assignee: 'Dwaine', type: 'human', sort: 1 },
+      { key: 'confirm_dd_complete', title: 'Confirm DD checklist completion', assignee: 'Joy', type: 'human', sort: 2 }
+    ],
+    pre_closing: [
+      { key: 'collect_w9', title: "Collect client W9, address, direct deposit info", assignee: 'Joy', type: 'human', sort: 1 },
+      { key: 'draft_invoice', title: 'Draft sales invoice for review', assignee: 'Bot', type: 'bot', sort: 2 },
+      { key: 'send_invoice', title: 'Send invoice to title + confirm receipt', assignee: 'Joy', type: 'human', sort: 3 },
+      { key: 'confirm_wire', title: 'Confirm wire instructions with title agent', assignee: 'Dwaine', type: 'human', sort: 4 },
+      { key: 'draft_press_release', title: 'Draft closing press release', assignee: 'Bot', type: 'bot', sort: 5 },
+      { key: 'draft_flyer', title: 'Create draft flyer + social media post', assignee: 'Bot', type: 'bot', sort: 6 },
+      { key: 'draft_case_study', title: 'Draft case study for website', assignee: 'Bot', type: 'bot', sort: 7 }
+    ],
+    closing_day: [
+      { key: 'lease_assignment', title: 'Prepare Lease Assignment & Notification Letter', assignee: 'Bot', type: 'bot', sort: 1 }
+    ],
+    post_closing: [
+      { key: 'thank_you_email', title: 'Prepare Thank You email + file links', assignee: 'Bot', type: 'bot', sort: 1 },
+      { key: 'congrats_email', title: 'Prepare personal congratulations email', assignee: 'Bot', type: 'bot', sort: 2 },
+      { key: 'website_case_study', title: 'Draft case study to website + LinkedIn', assignee: 'Bot', type: 'bot', sort: 3 },
+      { key: 'archive_calendar', title: 'Archive Client Google Calendar', assignee: 'Bot', type: 'bot', sort: 4 }
+    ]
+  };
+
   async function seedCriticalDates(dealId) {
     if (!dealId) return;
     const existing = allDealCriticalDates.filter(cd => cd.deal_id === dealId);
@@ -3081,6 +3199,140 @@
     } catch (e) {
       console.error('Failed to seed critical dates:', e);
       alert('Failed to create milestones: ' + e.message);
+    }
+  }
+
+  // Seed transaction subtasks for a deal at a given stage (or all stages)
+  async function seedTransactionSteps(dealId, stage) {
+    if (!dealId) return;
+    const stages = stage ? [stage] : Object.keys(TRANSACTION_STEPS);
+    const existing = allDealSubtasks.filter(s => s.deal_id === dealId);
+    const existingKeys = existing.map(s => s.task_key || s.title);
+    let created = 0;
+
+    for (const stg of stages) {
+      const steps = TRANSACTION_STEPS[stg];
+      if (!steps) continue;
+      for (const step of steps) {
+        if (existingKeys.includes(step.key) || existingKeys.includes(step.title)) continue;
+        try {
+          await supaInsert('deal_subtasks', {
+            deal_id: dealId,
+            stage: stg,
+            title: step.title,
+            task_key: step.key,
+            assignee: step.assignee,
+            task_type: step.type,
+            sort_order: step.sort,
+            status: 'pending'
+          });
+          created++;
+        } catch (e) {
+          console.error('Failed to create subtask:', step.key, e);
+        }
+      }
+    }
+    if (created > 0) {
+      await loadDealSubtasks();
+      renderDealSubtasks();
+    }
+    return created;
+  }
+
+  // Notify Slack of stage change
+  async function notifyStageChange(dealName, oldStage, newStage) {
+    const tasks = TRANSACTION_STEPS[newStage] || [];
+    try {
+      await fetch('/api/stage-change-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealName, oldStage, newStage, tasks })
+      });
+    } catch (e) {
+      console.error('Stage change notify failed:', e);
+    }
+  }
+
+  // ---- DD Document Functions ----
+  function renderDealDocuments(dealId) {
+    const docs = allDealDocuments.filter(d => d.deal_id === dealId);
+    const grid = document.getElementById('dd-docs-grid');
+    const progress = document.getElementById('dd-docs-progress');
+
+    const uploadedTypes = docs.map(d => d.doc_type);
+    const requiredUploaded = REQUIRED_DD_DOCS.filter(t => uploadedTypes.includes(t)).length;
+    const totalRequired = REQUIRED_DD_DOCS.length;
+
+    progress.textContent = `${requiredUploaded}/${totalRequired} received`;
+    progress.className = 'dd-progress-badge ' +
+      (requiredUploaded === totalRequired ? 'complete' : requiredUploaded > 0 ? 'partial' : 'empty');
+
+    grid.innerHTML = DD_DOC_TYPES.map(dt => {
+      const doc = docs.find(d => d.doc_type === dt.type);
+      const isRequired = REQUIRED_DD_DOCS.includes(dt.type);
+      if (doc) {
+        return `<div class="dd-doc-slot dd-uploaded">
+          <div class="dd-doc-header">
+            <span class="dd-doc-icon" style="color:var(--green)">✓</span>
+            <span class="dd-doc-type">${dt.label}</span>
+            <span class="dd-doc-category">${dt.category}</span>
+          </div>
+          <div class="dd-doc-file">
+            <span class="dd-doc-filename" title="${doc.file_name}">${doc.file_name}</span>
+            <span class="dd-doc-remove" onclick="removeDDDoc('${doc.id}')" title="Remove">&times;</span>
+          </div>
+        </div>`;
+      } else {
+        return `<div class="dd-doc-slot dd-missing">
+          <div class="dd-doc-header">
+            <span class="dd-doc-icon" style="color:${isRequired ? 'var(--red)' : 'var(--muted)'}">○</span>
+            <span class="dd-doc-type">${dt.label}${isRequired ? '' : ' (optional)'}</span>
+            <span class="dd-doc-category">${dt.category}</span>
+          </div>
+          <input type="file" class="dd-doc-upload" accept=".pdf,.docx,.doc,.xlsx,.xls,.jpg,.png"
+            onchange="handleDDDocUpload('${dt.type}', '${dt.category}', this)">
+        </div>`;
+      }
+    }).join('');
+  }
+
+  async function handleDDDocUpload(docType, category, input) {
+    const file = input.files[0];
+    if (!file || !editingDealId) return;
+
+    input.disabled = true;
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      try {
+        await supaInsert('deal_documents', {
+          deal_id: editingDealId,
+          doc_type: docType,
+          category: category,
+          file_url: e.target.result,
+          file_name: file.name
+        });
+        await loadDealDocuments();
+        renderDealDocuments(editingDealId);
+      } catch (err) {
+        console.error('DD doc upload failed:', err);
+        alert('Upload failed: ' + err.message);
+        input.disabled = false;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function removeDDDoc(docId) {
+    if (!confirm('Remove this document?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/deal_documents?id=eq.${docId}`, {
+        method: 'DELETE',
+        headers
+      });
+      allDealDocuments = allDealDocuments.filter(d => d.id !== docId);
+      if (editingDealId) renderDealDocuments(editingDealId);
+    } catch (e) {
+      console.error('Failed to remove DD doc:', e);
     }
   }
 
@@ -3692,6 +3944,7 @@
     document.getElementById('deal-party-section').style.display = 'none';
     document.getElementById('deal-doc-section').style.display = 'none';
     document.getElementById('deal-critical-dates-section').style.display = 'none';
+    document.getElementById('deal-dd-docs-section').style.display = 'none';
     document.getElementById('deal-scan-status').style.display = 'none';
     pendingDealFiles = { loi: null, psa: null };
     document.getElementById('deal-modal').classList.add('open');
@@ -3761,6 +4014,17 @@
     document.getElementById('deal-critical-dates-section').style.display = isPSAStage ? 'block' : 'none';
     if (isPSAStage) renderCriticalDates(dealId);
 
+    // DD Documents section — show for escrow_open+ stages
+    const isDDStage = DD_STAGES.includes(deal.stage);
+    document.getElementById('deal-dd-docs-section').style.display = isDDStage ? 'block' : 'none';
+    if (isDDStage) renderDealDocuments(dealId);
+
+    // Auto-seed subtasks if none exist for current stage
+    const stageSubtasks = allDealSubtasks.filter(s => s.deal_id === dealId && s.stage === deal.stage);
+    if (stageSubtasks.length === 0 && TRANSACTION_STEPS[deal.stage]) {
+      seedTransactionSteps(dealId, deal.stage);
+    }
+
     document.getElementById('deal-modal').classList.add('open');
   }
 
@@ -3787,9 +4051,10 @@
         html += `<div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;padding:8px 0 4px;margin-top:8px;border-top:1px solid var(--border)">${stageInfo ? stageInfo.label : s.stage}</div>`;
         lastStage = s.stage;
       }
+      const typeBadge = s.task_type ? `<span class="ds-type-badge ds-type-${s.task_type}">${s.task_type}</span>` : '';
       html += `<div class="deal-subtask-item">
         <div class="deal-subtask-check ${s.status === 'done' ? 'checked' : ''}" onclick="event.stopPropagation();toggleDealSubtask('${s.id}','${s.status}')">${s.status === 'done' ? '✓' : ''}</div>
-        <span style="flex:1;${s.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${s.title}</span>
+        <span style="flex:1;${s.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${s.title}${typeBadge}</span>
         <span class="ds-assignee">${s.assignee || ''}</span>
       </div>`;
     });
@@ -3860,11 +4125,26 @@
 
     try {
       if (editId) {
+        // Detect stage change
+        const oldDeal = allDeals.find(d => d.id === editId);
+        const oldStage = oldDeal ? oldDeal.stage : null;
         await supaUpdate('deals', editId, data);
+
+        // If stage changed, seed new stage subtasks + notify Slack
+        if (oldStage && oldStage !== stage) {
+          await seedTransactionSteps(editId, stage);
+          // Auto-seed critical dates if moving into PSA+ stage
+          if (PSA_STAGES.includes(stage) && !PSA_STAGES.includes(oldStage)) {
+            await seedCriticalDates(editId);
+          }
+          notifyStageChange(dealName, oldStage, stage);
+        }
       } else {
         data.loi_date = new Date().toISOString().split('T')[0];
         const created = await supaInsert('deals', data);
         if (created && created[0]) {
+          // Auto-seed subtasks for the initial stage
+          await seedTransactionSteps(created[0].id, stage);
           // Auto-seed critical dates if creating at PSA+ stage
           if (PSA_STAGES.includes(stage)) {
             await seedCriticalDates(created[0].id);
@@ -3872,11 +4152,13 @@
           // Auto-suggest deal party contacts from existing data
           await loadDealContacts();
           autoSuggestDealParties(created[0].id);
+          // Notify Slack of new deal
+          notifyStageChange(dealName, null, stage);
         }
       }
       closeDealModal();
       pendingDealFiles = { loi: null, psa: null };
-      await Promise.all([loadDeals(), loadDealSubtasks(), loadDealCriticalDates(), loadDealContacts()]);
+      await Promise.all([loadDeals(), loadDealSubtasks(), loadDealCriticalDates(), loadDealContacts(), loadDealDocuments()]);
       renderPipeline();
     } catch (e) {
       console.error('Save deal failed:', e);
@@ -4335,7 +4617,7 @@
     document.getElementById('refresh-status').textContent = 'Loading...';
     await Promise.all([
       loadTasks(), loadMembers(), loadActivity(),
-      loadDeals(), loadDealSubtasks(), loadDealCriticalDates(), loadDealContacts(), loadOffers(), loadProperties(), loadContacts()
+      loadDeals(), loadDealSubtasks(), loadDealCriticalDates(), loadDealContacts(), loadDealDocuments(), loadOffers(), loadProperties(), loadContacts()
     ]);
     renderAll();
     // Initialize business switcher visibility
