@@ -1297,6 +1297,36 @@
     .ds-type-bot { background: rgba(139,92,246,0.15); color: #a78bfa; }
     .ds-type-human { background: rgba(59,130,246,0.15); color: #60a5fa; }
     .ds-type-hybrid { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+    /* DD Review */
+    .dd-review-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .dd-review-section .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .dd-review-section .section-header label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .btn-review { font-size: 11px; padding: 4px 12px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-review:hover { opacity: 0.85; }
+    .btn-review:disabled { opacity: 0.5; cursor: not-allowed; }
+    .dd-review-results { margin-top: 10px; }
+    .dd-flag { padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid; }
+    .dd-flag.red { border-color: var(--red); background: rgba(239,68,68,0.06); }
+    .dd-flag.yellow { border-color: var(--yellow); background: rgba(251,191,36,0.06); }
+    .dd-flag-title { font-size: 12px; font-weight: 600; color: var(--text); }
+    .dd-flag-detail { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+    .dd-flag-rec { font-size: 11px; color: var(--accent); margin-top: 3px; font-style: italic; }
+    .dd-terms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+    .dd-term { padding: 6px 8px; background: var(--bg); border-radius: 4px; border: 1px solid var(--border); }
+    .dd-term-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+    .dd-term-value { font-size: 12px; color: var(--text); margin-top: 2px; }
+    .dd-action { padding: 6px 8px; background: var(--bg); border-radius: 4px; border: 1px solid var(--border); display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .dd-action-priority { font-size: 9px; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; font-weight: 600; }
+    .dd-action-priority.high { background: rgba(239,68,68,0.15); color: var(--red); }
+    .dd-action-priority.medium { background: rgba(251,191,36,0.15); color: var(--yellow); }
+    .dd-action-priority.low { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .dd-review-summary { padding: 10px; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); margin-top: 10px; font-size: 12px; color: var(--text); line-height: 1.5; }
+    .dd-review-status { padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-top: 8px; }
+    .dd-section-toggle { cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 12px; font-weight: 600; color: var(--text); }
+    .dd-section-toggle:hover { color: var(--accent); }
+    .dd-section-body { display: none; }
+    .dd-section-body.open { display: block; }
   </style>
 </head>
 <body>
@@ -1819,6 +1849,16 @@
         <span id="dd-docs-progress" class="dd-progress-badge empty">0/5 received</span>
       </div>
       <div class="dd-docs-grid" id="dd-docs-grid"></div>
+    </div>
+
+    <!-- DD Review Section -->
+    <div id="deal-dd-review-section" class="dd-review-section" style="display:none">
+      <div class="section-header">
+        <label>AI Due Diligence Review</label>
+        <button class="btn-review" id="dd-review-btn" onclick="runDDReview()">Run DD Review</button>
+      </div>
+      <div id="dd-review-status" class="dd-review-status" style="display:none"></div>
+      <div id="dd-review-results" class="dd-review-results" style="display:none"></div>
     </div>
 
     <!-- Critical Dates Section -->
@@ -3083,6 +3123,16 @@
         const color = uploaded === REQUIRED_DD_DOCS.length ? 'var(--green)' : uploaded > 0 ? 'var(--yellow)' : 'var(--muted)';
         return `<div style="font-size:10px;margin-top:2px;color:${color}">DD Docs: ${uploaded}/${REQUIRED_DD_DOCS.length}</div>`;
       })() : ''}
+      ${deal.dd_review ? (() => {
+        try {
+          const rv = JSON.parse(deal.dd_review);
+          const rc = rv.red_flags?.length || 0;
+          const yc = rv.yellow_flags?.length || 0;
+          const color = rc > 0 ? 'var(--red)' : yc > 0 ? 'var(--yellow)' : 'var(--green)';
+          const label = rc > 0 ? `${rc} red flag${rc>1?'s':''}` : yc > 0 ? `${yc} concern${yc>1?'s':''}` : 'DD reviewed ✓';
+          return `<div style="font-size:10px;margin-top:2px;color:${color}">${label}</div>`;
+        } catch { return ''; }
+      })() : ''}
     </div>`;
   }
 
@@ -3333,6 +3383,210 @@
       if (editingDealId) renderDealDocuments(editingDealId);
     } catch (e) {
       console.error('Failed to remove DD doc:', e);
+    }
+  }
+
+  // ---- DD Review Functions ----
+  async function runDDReview() {
+    if (!editingDealId) return;
+    const deal = allDeals.find(d => d.id === editingDealId);
+    if (!deal) return;
+
+    const btn = document.getElementById('dd-review-btn');
+    const statusEl = document.getElementById('dd-review-status');
+    const resultsEl = document.getElementById('dd-review-results');
+
+    // Collect documents to review: PSA + any uploaded DD docs
+    const documents = [];
+
+    // Add PSA if available
+    const psaData = pendingDealFiles.psa || (deal.psa_file_url ? { data: deal.psa_file_url, name: deal.psa_file_name || 'psa.pdf' } : null);
+    if (psaData) {
+      const base64 = psaData.data.includes(',') ? psaData.data.split(',')[1] : psaData.data;
+      documents.push({ base64, name: psaData.name, docType: 'PSA' });
+    }
+
+    // Add uploaded DD docs (lease, survey, etc.)
+    const ddDocs = allDealDocuments.filter(d => d.deal_id === editingDealId);
+    for (const doc of ddDocs) {
+      if (doc.file_url) {
+        const base64 = doc.file_url.includes(',') ? doc.file_url.split(',')[1] : doc.file_url;
+        documents.push({ base64, name: doc.file_name, docType: doc.doc_type });
+      }
+    }
+
+    if (documents.length === 0) {
+      alert('Upload a PSA or DD documents first before running a review.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Reviewing...';
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'rgba(59,130,246,0.1)';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = `AI is reviewing ${documents.length} document(s)... This may take 30-60 seconds.`;
+    resultsEl.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/dd-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documents,
+          dealName: deal.deal_name
+        })
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `${res.status} ${res.statusText}`);
+      }
+
+      const review = await res.json();
+
+      // Save review to deal
+      await supaUpdate('deals', editingDealId, {
+        dd_review: JSON.stringify(review),
+        dd_review_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      // Update local state
+      deal.dd_review = JSON.stringify(review);
+      deal.dd_review_date = new Date().toISOString();
+
+      renderDDReview(review);
+
+      const redCount = review.red_flags?.length || 0;
+      const yellowCount = review.yellow_flags?.length || 0;
+      statusEl.style.background = redCount > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)';
+      statusEl.style.color = redCount > 0 ? 'var(--red)' : 'var(--green)';
+      statusEl.textContent = `Review complete: ${redCount} red flag(s), ${yellowCount} concern(s), ${review.action_items?.length || 0} action item(s)`;
+
+      // Notify Slack
+      notifyDDReview(deal.deal_name, review);
+
+    } catch (e) {
+      console.error('DD review failed:', e);
+      statusEl.style.background = 'rgba(239,68,68,0.1)';
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Review failed: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Run DD Review';
+    }
+  }
+
+  function renderDDReview(review) {
+    const el = document.getElementById('dd-review-results');
+    el.style.display = 'block';
+
+    let html = '';
+
+    // Summary
+    if (review.summary) {
+      html += `<div class="dd-review-summary">${review.summary}</div>`;
+    }
+
+    // Red Flags
+    if (review.red_flags && review.red_flags.length > 0) {
+      html += `<div class="dd-section-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span>▶</span> Red Flags (${review.red_flags.length})
+      </div>
+      <div class="dd-section-body open">`;
+      for (const f of review.red_flags) {
+        html += `<div class="dd-flag red">
+          <div class="dd-flag-title">${f.title}</div>
+          <div class="dd-flag-detail">${f.detail}</div>
+          <div class="dd-flag-rec">${f.recommendation}</div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // Yellow Flags
+    if (review.yellow_flags && review.yellow_flags.length > 0) {
+      html += `<div class="dd-section-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span>▶</span> Concerns (${review.yellow_flags.length})
+      </div>
+      <div class="dd-section-body open">`;
+      for (const f of review.yellow_flags) {
+        html += `<div class="dd-flag yellow">
+          <div class="dd-flag-title">${f.title}</div>
+          <div class="dd-flag-detail">${f.detail}</div>
+          <div class="dd-flag-rec">${f.recommendation}</div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // Key Terms
+    if (review.key_terms && Object.keys(review.key_terms).length > 0) {
+      const termLabels = {
+        lease_start: 'Lease Start', lease_end: 'Lease End', remaining_term: 'Remaining Term',
+        renewal_options: 'Renewal Options', current_rent: 'Current Rent', escalations: 'Escalations',
+        tenant_responsibilities: 'Tenant Responsibilities', landlord_obligations: 'Landlord Obligations',
+        insurance: 'Insurance', assignment_provisions: 'Assignment', guarantees: 'Guarantees'
+      };
+      html += `<div class="dd-section-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span>▶</span> Key Terms
+      </div>
+      <div class="dd-section-body">
+        <div class="dd-terms-grid">`;
+      for (const [key, val] of Object.entries(review.key_terms)) {
+        if (val && val !== 'null' && val !== 'N/A') {
+          html += `<div class="dd-term">
+            <div class="dd-term-label">${termLabels[key] || key}</div>
+            <div class="dd-term-value">${val}</div>
+          </div>`;
+        }
+      }
+      html += '</div></div>';
+    }
+
+    // Action Items
+    if (review.action_items && review.action_items.length > 0) {
+      html += `<div class="dd-section-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span>▶</span> Action Items (${review.action_items.length})
+      </div>
+      <div class="dd-section-body open">`;
+      for (const a of review.action_items) {
+        html += `<div class="dd-action">
+          <span class="dd-action-priority ${a.priority || 'medium'}">${a.priority || 'medium'}</span>
+          <span style="flex:1;font-size:12px">${a.task}</span>
+          <span style="font-size:10px;color:var(--muted)">${a.assignee || ''}</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+  }
+
+  async function notifyDDReview(dealName, review) {
+    const SLACK_WEBHOOK_URL = null; // Will use server-side notification
+    const redCount = review.red_flags?.length || 0;
+    const yellowCount = review.yellow_flags?.length || 0;
+    const actionCount = review.action_items?.length || 0;
+
+    try {
+      await fetch('/api/notify-deal-parties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dealName,
+          source: 'AI DD Review',
+          contacts: [
+            { role: 'Summary', name: review.summary || 'Review complete' },
+            ...(review.red_flags || []).map(f => ({ role: 'Red Flag', name: f.title, source: f.recommendation })),
+            ...(review.yellow_flags || []).slice(0, 3).map(f => ({ role: 'Concern', name: f.title })),
+            ...(review.action_items || []).filter(a => a.priority === 'high').map(a => ({ role: 'Action (HIGH)', name: a.task, source: a.assignee }))
+          ]
+        })
+      });
+    } catch (e) {
+      console.error('DD review Slack notification failed:', e);
     }
   }
 
@@ -3945,6 +4199,7 @@
     document.getElementById('deal-doc-section').style.display = 'none';
     document.getElementById('deal-critical-dates-section').style.display = 'none';
     document.getElementById('deal-dd-docs-section').style.display = 'none';
+    document.getElementById('deal-dd-review-section').style.display = 'none';
     document.getElementById('deal-scan-status').style.display = 'none';
     pendingDealFiles = { loi: null, psa: null };
     document.getElementById('deal-modal').classList.add('open');
@@ -4018,6 +4273,25 @@
     const isDDStage = DD_STAGES.includes(deal.stage);
     document.getElementById('deal-dd-docs-section').style.display = isDDStage ? 'block' : 'none';
     if (isDDStage) renderDealDocuments(dealId);
+
+    // DD Review section — show for DD-relevant stages or if PSA exists
+    const showReview = isDDStage || PSA_STAGES.includes(deal.stage);
+    document.getElementById('deal-dd-review-section').style.display = showReview ? 'block' : 'none';
+    document.getElementById('dd-review-status').style.display = 'none';
+    document.getElementById('dd-review-results').style.display = 'none';
+    if (showReview && deal.dd_review) {
+      try {
+        const savedReview = JSON.parse(deal.dd_review);
+        renderDDReview(savedReview);
+        const statusEl = document.getElementById('dd-review-status');
+        statusEl.style.display = 'block';
+        const reviewDate = deal.dd_review_date ? new Date(deal.dd_review_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) : '';
+        const redCount = savedReview.red_flags?.length || 0;
+        statusEl.style.background = redCount > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)';
+        statusEl.style.color = redCount > 0 ? 'var(--red)' : 'var(--green)';
+        statusEl.textContent = `Last reviewed: ${reviewDate} — ${redCount} red flag(s), ${savedReview.yellow_flags?.length || 0} concern(s)`;
+      } catch (e) { /* ignore parse errors */ }
+    }
 
     // Auto-seed subtasks if none exist for current stage
     const stageSubtasks = allDealSubtasks.filter(s => s.deal_id === dealId && s.stage === deal.stage);
