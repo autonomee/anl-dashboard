@@ -3797,7 +3797,7 @@
 
       // Process contacts from scan
       if (result.contacts && result.contacts.length > 0) {
-        statusEl.textContent = `Found ${result.contacts.length} contacts. Saving suggestions...`;
+        statusEl.textContent = `Found ${result.contacts.length} contacts. Saving to Mission Control + GHL...`;
         contactsAdded = await processPSAContacts(editingDealId, result.contacts);
       }
 
@@ -4203,6 +4203,39 @@
     if (added > 0) {
       await loadDealContacts();
       renderDealParties(dealId);
+
+      // Sync contacts to GoHighLevel
+      try {
+        const contactsToSync = scannedContacts
+          .filter(sc => newSuggestions.find(ns => ns.name === sc.name))
+          .map(sc => ({
+            id: newSuggestions.find(ns => ns.name === sc.name)?.contactId,
+            name: sc.name,
+            email: sc.email,
+            phone: sc.phone,
+            company: sc.company,
+            role: sc.role,
+            source: sc.source || 'PSA scan'
+          }));
+
+        const ghlRes = await fetch('/api/sync-contacts-to-ghl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: contactsToSync })
+        });
+
+        if (ghlRes.ok) {
+          const ghlResult = await ghlRes.json();
+          console.log('GHL sync result:', ghlResult);
+          // Update status message to show GHL sync
+          if (ghlResult.success) {
+            console.log(`✅ Synced ${ghlResult.summary.created + ghlResult.summary.updated} contacts to GHL`);
+          }
+        }
+      } catch (e) {
+        console.error('GHL sync failed:', e);
+        // Don't block on GHL sync failure — contacts are already in Supabase
+      }
 
       // Send Slack notification
       try {
